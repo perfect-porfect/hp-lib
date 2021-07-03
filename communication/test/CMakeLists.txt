@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.10.0)
+set(TEST_NAME com)
+find_package(GTest REQUIRED)
+set (CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+include_directories(${GTEST_INCLUDE_DIRS})
+add_executable(${TEST_NAME} communication.cc)
+target_link_libraries(${TEST_NAME} PUBLIC communication ${GTEST_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})

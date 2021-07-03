@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.10.0)
+set(TEST_NAME read_file_test)
+find_package(GTest REQUIRED)
+set (CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_BUILD_TYPE Debug)
+
+include_directories(${GTEST_INCLUDE_DIRS})
+add_executable(${TEST_NAME} read_file_test.cc)
+target_link_libraries(${TEST_NAME} PUBLIC  dataaccess communication ${GTEST_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})

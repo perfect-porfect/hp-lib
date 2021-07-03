@@ -18,6 +18,14 @@ enum PacketSections {
     Other   = 0b01000000
 };
 
+template<class T> inline T operator~ (T a) { return (T)~(int)a; }
+template<class T> inline T operator| (T a, T b) { return (T)((int)a | (int)b); }
+template<class T> inline T operator& (T a, T b) { return (T)((int)a & (int)b); }
+template<class T> inline T operator^ (T a, T b) { return (T)((int)a ^ (int)b); }
+template<class T> inline T& operator|= (T& a, T b) { return (T&)((int&)a |= (int)b); }
+template<class T> inline T& operator&= (T& a, T b) { return (T&)((int&)a &= (int)b); }
+template<class T> inline T& operator^= (T& a, T b) { return (T&)((int&)a ^= (int)b); }
+
 
 class AbstractCRC {
 public:
@@ -74,6 +82,13 @@ public:
     virtual std::shared_ptr<AbstractSerializableMessage> build_message(const std::string cmd) = 0;
 };
 
+
+struct LengthSection{
+    int bytes;
+    PacketSections include;
+    bool is_msb;
+};
+
 class AbstractRawExtractor {
 public:
     virtual PacketSections get_packet_len_include() const = 0;
@@ -89,11 +104,6 @@ public:
     virtual std::shared_ptr<AbstractMessageFactory> get_messages_factory() const = 0;
     virtual std::shared_ptr<AbstractCRC> get_crc_checker() const  = 0;
     virtual std::vector<PacketSections> get_packet_sections() const = 0;
-    PacketSections operator|( PacketSections lhs, PacketSections rhs ) final
-    {
-        // Cast to int first otherwise we'll just end up recursing
-        return static_cast< PacketSections >( static_cast< int >( lhs ) | static_cast< int >( rhs ) );
-    }
 
 };
 

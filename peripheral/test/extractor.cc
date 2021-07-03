@@ -26,11 +26,9 @@ public:
 class ClientPacket : public AbstractRawExtractor {
 public:
     ClientPacket(){}
-    PacketSections get_packet_len_include() const { return PacketSections::Data/* | PacketSections::Footer*/; }
-    int get_header_len() const         { return 2; }
+    PacketSections get_packet_len_include() const { return PacketSections::Data/*PacketSections::Data | PacketSections::CMD*/; }
     int get_packet_len() const         { return 4; }
-    int get_footer_len() const         { return 4; }
-    int get_cmd_len() const            { return 1; }
+    int get_cmd_len() const            { return 2; }
     int get_crc_len() const            { return 0; }
     bool is_packet_len_msb() const     { return false; }
     std::string get_header_content() const { return {(char)0xff, (char)0x00}; }
@@ -167,6 +165,19 @@ void start_tcp_server()
 //    return 0;
 //}
 
+enum AnimalFlags
+{
+    HasClaws   = 1,
+    CanFly     = 2,
+    EatsFish   = 4,
+    Endangered = 8
+};
+
+//inline AnimalFlags operator|(AnimalFlags a, AnimalFlags b)
+//{
+//    return static_cast<AnimalFlags>(static_cast<int>(a) | static_cast<int>(b));
+//}
+
 
 int main()
 {
@@ -176,5 +187,8 @@ int main()
         start_tcp_server();
     //    start_tcp_client();
 //    Buffer<std::shared_ptr<TCPClient>> messages_buffer_(12);
+        LengthSection test;
+        test.include = PacketSections::CMD | PacketSections::CRC;
+//      AnimalFlags an = AnimalFlags::CanFly | AnimalFlags::EatsFish;
 
 }

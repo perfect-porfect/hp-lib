@@ -163,9 +163,11 @@ void new_connection(TCPClient *client)
 
 void start_tcp_server()
 {
-    auto tcp_server = std::make_shared<TCPServer>(8585);
+    boost::asio::io_context io_context;
+    auto tcp_server = std::make_shared<TCPServer>(io_context, 8585);
     tcp_server->notify_me_for_new_connection(std::bind(new_connection, std::placeholders::_1));
     tcp_server->start();
+    io_context.run();
 //    int counter = 0;
 //    auto function = std::bind(test, 2, std::placeholders::_1);
     while(1) {

@@ -8,9 +8,13 @@ using namespace hp::peripheral;
 
 class FuckMessage : public AbstractSerializableMessage {
 public:
-    void serialize(char *buffer, size_t size) { }
-    void deserialize(const char *buffer, size_t size) {  }
-    size_t get_serialize_size() { return 4; }
+    void serialize(char *buffer, size_t size) {
+        memcpy(buffer, (void*) &date_time_, size);
+    }
+    void deserialize(const char *buffer, size_t size) {
+        memcpy((void*) & date_time_, buffer, size);
+    }
+    size_t get_serialize_size() const { return 9; }
 
 private:
     struct DateTime{
@@ -26,9 +30,22 @@ private:
 
 class ShitMessage : public AbstractSerializableMessage {
 public:
-    void serialize(char *buffer, size_t size);
-    void deserialize(const char *buffer, size_t size);
-    size_t get_serialize_size();
+    void serialize(char *buffer, size_t size) {
+        memcpy(buffer, (void*) &student_, size);
+    }
+    void deserialize(const char *buffer, size_t size) {
+        memcpy((void*) & student_, buffer, size);
+    }
+    size_t get_serialize_size() const { return 8; }
+private:
+    struct Student{
+        int id;
+        uint8_t age;
+        uint8_t year;
+        uint8_t month;
+        uint8_t day;
+    }student_;
+
 };
 
 
@@ -36,6 +53,10 @@ class MessageFactory : public AbstractMessageFactory{
 public:
     std::shared_ptr<AbstractSerializableMessage> build_message(const std::string cmd) {
         if (cmd[0] == (char)0xd1 && cmd[1] == char(0xd2))
+            return std::make_shared<FuckMessage>();
+        else if (cmd[0] == (char)0xd1 && cmd[1] == char(0xd2))
+            return std::make_shared<ShitMessage>();
+        else
             return std::make_shared<FuckMessage>();
         return nullptr;
     }
@@ -58,13 +79,21 @@ public:
         cmd.msg_factory = std::make_shared<MessageFactory>();
 
         LengthSection length;
-        length.include = PacketSections::Data | PacketSections::Other;
+        length.include = PacketSections::Data;
         length.is_msb = true;
         length.size_bytes = 4;
+
+        DataSection data;
+        CRCSection crc;
+        //        crc.crc_checker = std::make_shared<AbstractCRC
+        crc.size_bytes = 4;
 
         sections.push_back(header);
         sections.push_back(cmd);
         sections.push_back(length);
+        sections.push_back(data);
+        sections.push_back(crc);
+
         return sections;
     };
 };
@@ -127,8 +156,9 @@ void new_connection(TCPClient *client)
     std::cout << "id: " << client->get_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
     auto extractor = std::make_shared<ClientPacket>();
     client->set_extractor(extractor);
-    client->get_next_packet();
     client->start();
+    auto msg = client->get_next_packet();
+    int ad = 0;
 }
 
 void start_tcp_server()
@@ -136,21 +166,19 @@ void start_tcp_server()
     auto tcp_server = std::make_shared<TCPServer>(8585);
     tcp_server->notify_me_for_new_connection(std::bind(new_connection, std::placeholders::_1));
     tcp_server->start();
-    int counter = 0;
-    auto function = std::bind(test, 2, std::placeholders::_1);
+//    int counter = 0;
+//    auto function = std::bind(test, 2, std::placeholders::_1);
     while(1) {
-        if (counter++ == 3)
-            break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-        all_clients[0]->async_send("asdf", 4, function);
+//        if (counter++ == 3)
+//            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+//        all_clients[0]->async_send("asdf", 4, function);
     }
 }
 
+// aa ff d1 d2 00 00 00 66 01 02 03 04 05 06 07 08 09 aa bb cc dd
 int main()
 {
-    //    std::thread read_thread(thread_read);
-    //    std::thread write_thread(thread_write);
-    //    read_thread.join();
     start_tcp_server();
     //    start_tcp_client();
     //    Buffer<std::shared_ptr<TCPClient>> messages_buffer_(12);

@@ -16,8 +16,6 @@ private:
     int calc_len(const char *data, uint32_t size, bool is_msb);
     std::string get_next_bytes(uint32_t size);
 
-
-
     //Extractor
     std::shared_ptr<AbstractRawExtractor> extractor_;
     std::shared_ptr<AbstractBuffer> buffer_;

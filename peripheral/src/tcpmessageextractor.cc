@@ -25,6 +25,7 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
         case PacketSections::Header : {
             header_ = *dynamic_cast<HeaderSection*>(&section);
             find_header();
+            std::cout << "find header" << std::endl;
             break;
         }
         case PacketSections::CMD : {

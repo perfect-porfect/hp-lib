@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.0.0)
 
-project(hp-lib VERSION 0.1 LANGUAGES CXX)
+#project(hp-lib VERSION 0.1 LANGUAGES CXX)
 
-add_subdirectory(common)
+#add_subdirectory(common)
 add_subdirectory(peripheral)
 #add_subdirectory(communication)
 #add_subdirectory(dataaccess)
@@ -25,5 +25,5 @@ add_subdirectory(peripheral)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-add_executable(${PROJECT_NAME} "src/main.cpp")
+#add_executable(${PROJECT_NAME} "src/main.cpp")
 #target_link_libraries(${PROJECT_NAME} PUBLIC communication ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})

@@ -48,7 +48,7 @@ public :
     //! \return the size_t value which show the serializ size this function will used when
     //!         packet not include packet_len
     //!
-    virtual size_t get_serialize_size() = 0;
+    virtual size_t get_serialize_size() const = 0;
     virtual ~AbstractSerializableMessage(){} //! virtual interface destructor
 };
 

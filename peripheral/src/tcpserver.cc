@@ -19,6 +19,7 @@ void TCPServer::start()
         acceptor_ = boost::make_shared<boost::asio::ip::tcp::acceptor>(io_context_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port_));
         worker_thread_ = boost::make_shared<boost::thread>(&TCPServer::worker_thread,this);
         accept_connection();
+        std::cout << "Start tcp server with port " << port_ << std::endl;
     }  catch (boost::wrapexcept<boost::system::system_error>& exp) {
         std::cout << "error: " << exp.what() << std::endl;
     }
@@ -86,7 +87,10 @@ void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> clie
 void TCPServer::worker_thread()
 {
     boost::system::error_code ec;
-    io_context_.run(ec);
+    while(1) {
+        io_context_.run(ec);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 }
 
 } // namespace peripheral

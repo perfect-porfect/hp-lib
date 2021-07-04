@@ -60,7 +60,7 @@ bool TCPClient::start()
         is_connected_ = true;
         if (msg_extractor_ != nullptr && buffer_ == nullptr) {
             buffer_ = std::make_shared<FastBuffer>(buffer_size_);
-            tcp_message_extractor_ = std::make_shared<TCPMessageExtractor>(msg_extractor_, buffer_);
+            tcp_message_extractor_ = std::make_shared<MessageExtractor>(msg_extractor_, buffer_);
             thread_group_.create_thread(boost::bind(&TCPClient::extract_message, this));
         } else if (buffer_ == nullptr) {
             buffer_ = std::make_shared<CircularBuffer>(buffer_size_);

@@ -8,24 +8,6 @@
 namespace hp {
 namespace peripheral {
 
-enum PacketSections {
-    Header  = 0b00000001,
-    Length  = 0b00000010,
-    CMD     = 0b00000100,
-    Footer  = 0b00001000,
-    CRC     = 0b00010000,
-    Data    = 0b00100000,
-    Other   = 0b01000000
-};
-
-template<class T> inline T operator~ (T a) { return (T)~(int)a; }
-template<class T> inline T operator| (T a, T b) { return (T)((int)a | (int)b); }
-template<class T> inline T operator& (T a, T b) { return (T)((int)a & (int)b); }
-template<class T> inline T operator^ (T a, T b) { return (T)((int)a ^ (int)b); }
-template<class T> inline T& operator|= (T& a, T b) { return (T&)((int&)a |= (int)b); }
-template<class T> inline T& operator&= (T& a, T b) { return (T&)((int&)a &= (int)b); }
-template<class T> inline T& operator^= (T& a, T b) { return (T&)((int&)a ^= (int)b); }
-
 
 class AbstractCRC {
 public:
@@ -39,7 +21,6 @@ public:
     //!
     virtual bool is_valid(const char* data, size_t data_size, const char* crc_data, size_t crc_size) const = 0;
 };
-
 
 //!
 //! \brief The AbstractSerializableMessage class is an interface which implement
@@ -83,27 +64,74 @@ public:
 };
 
 
-struct LengthSection{
-    int bytes;
+enum PacketSections {
+    Header  = 0b00000001,
+    Length  = 0b00000010,
+    CMD     = 0b00000100,
+    Footer  = 0b00001000,
+    CRC     = 0b00010000,
+    Data    = 0b00100000,
+    Other   = 0b01000000
+};
+
+template<class T> inline T operator~ (T a) { return (T)~(int)a; }
+template<class T> inline T operator| (T a, T b) { return (T)((int)a | (int)b); }
+template<class T> inline T operator& (T a, T b) { return (T)((int)a & (int)b); }
+template<class T> inline T operator^ (T a, T b) { return (T)((int)a ^ (int)b); }
+template<class T> inline T& operator|= (T& a, T b) { return (T&)((int&)a |= (int)b); }
+template<class T> inline T& operator&= (T& a, T b) { return (T&)((int&)a &= (int)b); }
+template<class T> inline T& operator^= (T& a, T b) { return (T&)((int&)a ^= (int)b); }
+
+
+struct Section{
+public:
+    virtual PacketSections get_type() const { return PacketSections::Other;};
+};
+
+struct CRCSection : public Section {
+    uint32_t size_bytes;
+    std::shared_ptr<AbstractCRC> crc_checker;
+public:
+    PacketSections get_type() const { return PacketSections::CRC;}
+};
+
+struct LengthSection : public Section {
+    uint32_t size_bytes;
     PacketSections include;
     bool is_msb;
+public:
+    PacketSections get_type() const { return PacketSections::Length;}
 };
+
+struct HeaderSection : public Section {
+    std::string content;
+public:
+    PacketSections get_type() const { return PacketSections::Header;}
+};
+
+struct FooterSection : public Section {
+    std::string content;
+public:
+    PacketSections get_type() const { return PacketSections::Footer;}
+};
+
+struct CMDSection : public Section {
+    uint32_t size_bytes;
+    std::shared_ptr<AbstractMessageFactory> msg_factory;
+public:
+    PacketSections get_type() const { return PacketSections::CMD;}
+};
+
+struct DataSection : public Section {
+
+public:
+    PacketSections get_type() const { return PacketSections::Data;}
+};
+
 
 class AbstractRawExtractor {
 public:
-    virtual PacketSections get_packet_len_include() const = 0;
-    virtual int get_packet_len() const = 0;
-    virtual int get_cmd_len() const = 0;
-    virtual int get_crc_len() const = 0;
-
-    virtual bool is_packet_len_msb() const = 0;
-
-    virtual std::string get_header_content() const = 0;
-    virtual std::string get_footer_content() const = 0;
-
-    virtual std::shared_ptr<AbstractMessageFactory> get_messages_factory() const = 0;
-    virtual std::shared_ptr<AbstractCRC> get_crc_checker() const  = 0;
-    virtual std::vector<PacketSections> get_packet_sections() const = 0;
+    virtual std::vector<Section> get_packet_sections() const = 0;
 
 };
 

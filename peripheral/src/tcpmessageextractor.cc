@@ -4,29 +4,13 @@
 namespace hp {
 namespace peripheral {
 
-PacketSections operator|( PacketSections lhs, PacketSections rhs )
-{
-    // Cast to int first otherwise we'll just end up recursing
-    return static_cast< PacketSections >( static_cast< int >( lhs ) | static_cast< int >( rhs ) );
-}
-
-
-TCPMessageExtractor::TCPMessageExtractor(std::shared_ptr<AbstractRawExtractor> extractor, std::shared_ptr<AbstractBuffer> buffer)
+MessageExtractor::MessageExtractor(std::shared_ptr<AbstractRawExtractor> extractor, std::shared_ptr<AbstractBuffer> buffer)
     : extractor_(extractor), buffer_(buffer)
 {
     packet_sections_ = extractor_->get_packet_sections();
-    message_factory_ = extractor_->get_messages_factory();
-    pkt_len_include_ = extractor_->get_packet_len_include();
-    is_pkt_len_msb_  = extractor_->is_packet_len_msb();
-    crc_checker_ = extractor_->get_crc_checker();
-    footer_len_  = footer_content_.length();
-    header_len_  = header_content_.length();
-    packet_len_  = extractor_->get_packet_len();
-    cmd_len_     = extractor_->get_cmd_len();
-    crc_len_     = extractor_->get_crc_len();
 }
 
-std::shared_ptr<AbstractSerializableMessage> TCPMessageExtractor::find_message()
+std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
 {
     std::shared_ptr<AbstractSerializableMessage> msg;
     uint8_t* data = nullptr;
@@ -36,19 +20,21 @@ std::shared_ptr<AbstractSerializableMessage> TCPMessageExtractor::find_message()
     int data_len;
     uint32_t data_size = 0;
     for (auto section : packet_sections_) {
-        switch(section) {
+        auto type = section.get_type();
+        switch(type) {
         case PacketSections::Header : {
+            header_ = *dynamic_cast<HeaderSection*>(&section);
             find_header();
             break;
         }
         case PacketSections::CMD : {
-            std::string cmd = get_next_bytes(cmd_len_);
-            msg = message_factory_->build_message(cmd.data());
+            std::string cmd = get_next_bytes(cmd_.size_bytes);
+            msg = cmd_.msg_factory->build_message(cmd.data());
             break;
         }
         case PacketSections::Length : {
-            std::string len_size = get_next_bytes(packet_len_);
-            data_len = calc_len(len_size.data(), packet_len_, is_pkt_len_msb_);
+            std::string len_size = get_next_bytes(length_.size_bytes);
+            data_len = calc_len(len_size.data(), length_.size_bytes, length_.is_msb);
             has_len = true;
             break;
         }
@@ -68,8 +54,8 @@ std::shared_ptr<AbstractSerializableMessage> TCPMessageExtractor::find_message()
             break;
         }
         case PacketSections::CRC : {
-            std::string crc_data = get_next_bytes(crc_len_);
-            is_crc_ok = crc_checker_->is_valid((char*)data, data_size, crc_data.data(), crc_data.size());
+            std::string crc_data = get_next_bytes(crc_.size_bytes);
+            is_crc_ok = crc_.crc_checker->is_valid((char*)data, data_size, crc_data.data(), crc_data.size());
             break;
         }
         case PacketSections::Footer : {
@@ -87,13 +73,13 @@ std::shared_ptr<AbstractSerializableMessage> TCPMessageExtractor::find_message()
     return msg;
 }
 
-void TCPMessageExtractor::find_header()
+void MessageExtractor::find_header()
 {
-    int header_index = 0;
+    uint32_t header_index = 0;
     while(1) {
-        if (header_index == header_len_)
+        if (header_index == header_.content.size())
             break;
-        if (header_content_[header_index] ==  buffer_->read_next_byte())
+        if (header_.content[header_index] ==  buffer_->read_next_byte())
             header_index++;
         else
             header_index = 0;
@@ -101,9 +87,9 @@ void TCPMessageExtractor::find_header()
 }
 
 
-int TCPMessageExtractor::calc_len(const char * data, uint32_t size, bool is_msb)
+int MessageExtractor::calc_len(const char * data, uint32_t size, bool is_msb)
 {
-    int len;
+    int len = 0;
     switch (size) {
     case 1 : {
         len = (int)(*data);
@@ -143,17 +129,17 @@ int TCPMessageExtractor::calc_len(const char * data, uint32_t size, bool is_msb)
 }
 
 
-bool TCPMessageExtractor::can_find_footer()
+bool MessageExtractor::can_find_footer()
 {
-    std::string footer = get_next_bytes(footer_len_);
-    for(int index = 0; index < footer_len_; index++) {
-        if (footer[index] != footer_content_[index])
+    for (uint32_t index = 0; index < footer_.content.size(); index++)
+        //TODO(HP) if bytes not valid store it and find to header.
+        if (footer_.content[index] ==  buffer_->read_next_byte())
             return false;
-    }
     return true;
+
 }
 
-std::string TCPMessageExtractor::get_next_bytes(uint32_t size)
+std::string MessageExtractor::get_next_bytes(uint32_t size)
 {
     std::string data;
     data.resize(size);

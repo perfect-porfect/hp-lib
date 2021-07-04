@@ -75,7 +75,7 @@ private:
     static std::atomic<int> ID_Counter_;
 
     std::shared_ptr<AbstractRawExtractor> msg_extractor_;
-    std::shared_ptr<TCPMessageExtractor> tcp_message_extractor_;
+    std::shared_ptr<MessageExtractor> tcp_message_extractor_;
 };
 
 } // namespace peripheral

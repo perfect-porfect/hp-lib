@@ -17,10 +17,11 @@ public:
     void start();
     void notify_me_for_new_connection(std::function<void (TCPClient *)> func);
     void send_to_all_clients(char* data, size_t size);
+    void accept_connection(bool state);
     ~TCPServer();
 private:
-    void accept_connection();
-    void handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> client, const boost::system::error_code &error);
+    void handle_connection();
+    void handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> socket, const boost::system::error_code &error);
     void worker_thread();
 
     int port_;
@@ -29,7 +30,7 @@ private:
     uint32_t client_number_;
     std::map<int, TCPClientShared> all_clients_map_;
 
-    boost::asio::io_context io_context_;
+    boost::shared_ptr<boost::asio::io_context> io_context_;
     boost::shared_ptr<boost::thread> worker_thread_;
     boost::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor_;
     boost::signals2::signal<void (TCPClient*)> client_object_connections_;

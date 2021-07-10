@@ -59,13 +59,13 @@ bool TCPClient::start()
         }
         is_connected_ = true;
         if (msg_extractor_ != nullptr && buffer_ == nullptr) {
-            buffer_ = std::make_shared<FastBuffer>(buffer_size_);
+            buffer_ = std::make_shared<CircularBuffer>(buffer_size_);
             tcp_message_extractor_ = std::make_shared<MessageExtractor>(msg_extractor_, buffer_);
             thread_group_.create_thread(boost::bind(&TCPClient::extract_message, this));
         } else if (buffer_ == nullptr) {
             buffer_ = std::make_shared<CircularBuffer>(buffer_size_);
+            thread_group_.create_thread(boost::bind(&TCPClient::io_contex_thread, this));
         }
-        thread_group_.create_thread(boost::bind(&TCPClient::io_contex_thread, this));
         socket_->async_receive(boost::asio::buffer(data_.data(), data_.size()),
                                boost::bind(&TCPClient::handle_read_data, this, boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
         is_running_ = true;
@@ -130,6 +130,7 @@ void TCPClient::extract_message()
     while(is_connected_) {
         auto msg = tcp_message_extractor_->find_message();
         messages_buffer_.write(msg);
+        std::cout << "find message with id: " << msg->get_type() << std::endl;
     }
 }
 
@@ -146,7 +147,7 @@ bool TCPClient::is_connected() const
 void TCPClient::disconnect()
 {
     socket_->close();
-    is_connected_ = false;
+    is_connected_ = false;<
     is_running_ = false;
 }
 void TCPClient::start_print_send_receive_rate()

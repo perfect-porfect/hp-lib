@@ -43,7 +43,7 @@ BufferError CircularBuffer::read(uint8_t *data, const uint32_t len, const uint32
 
     if (count() < len_data || destructor_call_)
         return BufferError::BUF_TIMEOUT;
-    std::cout << "timeout" << std::endl;
+
     while (len_data > 0) {
         // don't copy beyond the end of the buffer
         uint32_t c = std::min(len_data, size_ - tail_);

@@ -49,6 +49,7 @@ public :
     //!         packet not include packet_len
     //!
     virtual size_t get_serialize_size() const = 0;
+    virtual int get_type() const = 0;
     virtual ~AbstractSerializableMessage(){} //! virtual interface destructor
 };
 
@@ -92,7 +93,7 @@ struct CRCSection : public Section {
     uint32_t size_bytes;
     std::shared_ptr<AbstractCRC> crc_checker;
 public:
-    PacketSections get_type() const { return PacketSections::CRC;}
+    virtual PacketSections get_type()  const override { return PacketSections::CRC;}
 };
 
 struct LengthSection : public Section {
@@ -131,7 +132,7 @@ public:
 
 class AbstractRawExtractor {
 public:
-    virtual std::vector<Section> get_packet_sections() const = 0;
+    virtual std::vector<Section*> get_packet_sections() const = 0;
 
 };
 

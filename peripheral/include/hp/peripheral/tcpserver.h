@@ -17,7 +17,9 @@ public:
     void start();
     void notify_me_for_new_connection(std::function<void (TCPClient *)> func);
     void send_to_all_clients(char* data, size_t size);
+    void send_to_client(char* data, size_t size, uint32_t id);
     void accept_connection(bool state);
+    void dont_buffer_notify_me_data_received(std::function<void (char * data, size_t size, uint32_t id)> func);
     ~TCPServer();
 private:
     void disconnect(int id);
@@ -35,6 +37,8 @@ private:
     boost::shared_ptr<boost::thread> worker_thread_;
     boost::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor_;
     boost::signals2::signal<void (TCPClient*)> client_object_connections_;
+    std::function<void (char* data, size_t size, uint32_t id)> received_data_func_;
+
 };
 
 } // namespace peripheral

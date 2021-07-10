@@ -21,7 +21,6 @@ void TCPServer::start()
         acceptor_ = boost::make_shared<boost::asio::ip::tcp::acceptor>(*io_context_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port_));
         handle_connection();
         worker_thread_ = boost::make_shared<boost::thread>(&TCPServer::worker_thread,this);
-        std::cout << "Start tcp server with port " << port_ << std::endl;
     }  catch (boost::wrapexcept<boost::system::system_error>& exp) {
         std::cout << "error: " << exp.what() << std::endl;
     }
@@ -43,6 +42,13 @@ void TCPServer::send_to_all_clients(char *data, size_t size)
     }
 }
 
+void TCPServer::send_to_client(char *data, size_t size, uint32_t id)
+{
+    auto it = all_clients_map_.find(id);
+    if (it != all_clients_map_.end())
+        it->second->send(data, size);
+}
+
 TCPServer::~TCPServer()
 {
     std::cout << "~TCPServer" << std::endl;
@@ -62,15 +68,17 @@ void TCPServer::disconnect(int id)
 void TCPServer::handle_connection()
 {
     auto socket_ = std::make_shared<boost::asio::ip::tcp::socket>(*io_context_);
-
-    //    tcp_client_ = std::make_shared<TCPClient>(client_number_, io_context_);
     acceptor_->async_accept(*socket_, boost::bind(&TCPServer::handle_accept, this, socket_, boost::asio::placeholders::error()));
-
 }
 
 void TCPServer::accept_connection(bool state)
 {
     accept_connection_ = state;
+}
+
+void TCPServer::dont_buffer_notify_me_data_received(std::function<void (char * data, size_t size, uint32_t id)> func)
+{
+    received_data_func_ = func;
 }
 
 void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> socket, const boost::system::error_code &error)

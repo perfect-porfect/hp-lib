@@ -182,13 +182,8 @@ void start_tcp_server()
     auto tcp_server = std::make_shared<TCPServer>(8585);
     tcp_server->notify_me_for_new_connection(std::bind(new_connection, std::placeholders::_1));
     tcp_server->start();
-    //    int counter = 0;
-    //    auto function = std::bind(test, 2, std::placeholders::_1);
     while(1) {
-        //        if (counter++ == 3)
-        //            break;
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        //        all_clients[0]->async_send("asdf", 4, function);
     }
 }
 

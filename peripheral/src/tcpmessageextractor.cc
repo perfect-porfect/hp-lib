@@ -4,7 +4,7 @@
 namespace hp {
 namespace peripheral {
 
-MessageExtractor::MessageExtractor(std::shared_ptr<AbstractRawExtractor> extractor, std::shared_ptr<AbstractBuffer> buffer)
+MessageExtractor::MessageExtractor(std::shared_ptr<AbstractPacketSections> extractor, std::shared_ptr<AbstractBuffer> buffer)
     : extractor_(extractor), buffer_(buffer)
 {
     packet_sections_ = extractor_->get_packet_sections();
@@ -13,7 +13,8 @@ MessageExtractor::MessageExtractor(std::shared_ptr<AbstractRawExtractor> extract
 std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
 {
     std::shared_ptr<AbstractSerializableMessage> msg;
-    uint8_t* data = nullptr;
+//    uint8_t* data = nullptr;
+    std::vector<uint8_t> data;
     bool is_crc_ok = true;
     bool is_footer_ok = true;
     bool has_len = false;
@@ -43,14 +44,16 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
         }
         case PacketSections::Data : {
             if (has_len) {
-                data = new uint8_t[data_len];
+                data.resize(data_len);
+//                data = new uint8_t[data_len];
                 data_size = data_len;
             } else {
                 data_size = msg->get_serialize_size();
-                data = new uint8_t[data_size];
+//                data = new uint8_t[data_size];
+                data.resize(data_size);
             }
 
-            auto buf_ret = buffer_->read(data, data_size);
+            auto buf_ret = buffer_->read(data.data(), data_size);
             if (buf_ret != BufferError::BUF_NOERROR) {
                 std::cout << "fucking buffer" << std::endl;
             }
@@ -59,7 +62,7 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
         case PacketSections::CRC : {
             crc_ = dynamic_cast<CRCSection*>(section);
             std::string crc_data = get_next_bytes(crc_->size_bytes);
-            is_crc_ok = crc_->crc_checker->is_valid((char*)data, data_size, crc_data.data(), crc_data.size());
+            is_crc_ok = crc_->crc_checker->is_valid((char*)data.data(), data_size, crc_data.data(), crc_data.size());
             break;
         }
         case PacketSections::Footer : {
@@ -74,8 +77,7 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
         }
     }
     if (is_crc_ok && is_footer_ok && msg != nullptr)
-        msg->deserialize((char*)data, data_size);
-    delete data;
+        msg->deserialize((char*)data.data(), data_size);
     return msg;
 }
 

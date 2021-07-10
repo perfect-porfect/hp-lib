@@ -27,10 +27,11 @@ TCPClient::TCPClient(std::string ip, short port)
 
 void TCPClient::set_buffer(std::shared_ptr<AbstractBuffer> buffer)
 {
+    //TODO(HP): lock this and copy data to new buffer
     buffer_ = buffer;
 }
 
-void TCPClient::set_extractor(std::shared_ptr<AbstractRawExtractor> extractor)
+void TCPClient::set_extractor(std::shared_ptr<AbstractPacketSections> extractor)
 {
     msg_extractor_ = extractor;
 }
@@ -64,7 +65,7 @@ bool TCPClient::start()
             thread_group_.create_thread(boost::bind(&TCPClient::extract_message, this));
         } else if (buffer_ == nullptr) {
             buffer_ = std::make_shared<CircularBuffer>(buffer_size_);
-            thread_group_.create_thread(boost::bind(&TCPClient::io_contex_thread, this));
+            thread_group_.create_thread(boost::bind(&TCPClient::io_context_thread, this));
         }
         socket_->async_receive(boost::asio::buffer(data_.data(), data_.size()),
                                boost::bind(&TCPClient::handle_read_data, this, boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
@@ -147,7 +148,7 @@ bool TCPClient::is_connected() const
 void TCPClient::disconnect()
 {
     socket_->close();
-    is_connected_ = false;<
+    is_connected_ = false;
     is_running_ = false;
 }
 void TCPClient::start_print_send_receive_rate()
@@ -158,7 +159,7 @@ void TCPClient::start_print_send_receive_rate()
     receive_size_ = 0;
 }
 
-void TCPClient::io_contex_thread()
+void TCPClient::io_context_thread()
 {
     io_context_.run();
 }

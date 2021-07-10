@@ -20,6 +20,7 @@ public:
     void accept_connection(bool state);
     ~TCPServer();
 private:
+    void disconnect(int id);
     void handle_connection();
     void handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> socket, const boost::system::error_code &error);
     void worker_thread();

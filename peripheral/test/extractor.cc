@@ -14,6 +14,7 @@ enum MyMessages {
 
 class FuckMessage : public AbstractSerializableMessage {
 public:
+    FuckMessage() { msg_size_ = sizeof (date_time_);}
     void serialize(char *buffer, size_t size) {
         memcpy(buffer, (void*) &date_time_, size);
     }
@@ -34,6 +35,7 @@ private:
     };
     DateTime date_time_;
 
+    uint32_t msg_size_;
 };
 
 class ShitMessage : public AbstractSerializableMessage {
@@ -76,7 +78,7 @@ public:
     bool is_valid(const char *data, size_t data_size, const char *crc_data, size_t crc_size) const { return true;}
 };
 
-class ClientPacket : public AbstractRawExtractor {
+class ClientPacket : public AbstractPacketSections {
 public:
     ClientPacket(){}
 
@@ -171,7 +173,6 @@ void new_connection(TCPClient *client)
     std::cout << "id: " << client->get_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
     auto extractor = std::make_shared<ClientPacket>();
     client->set_extractor(extractor);
-    client->start();
     auto msg = client->get_next_packet();
     int ad = 0;
 }

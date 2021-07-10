@@ -27,7 +27,7 @@ public:
     TCPClient(TCPSocketShared socket);
     TCPClient(std::string ip, short port);
     void set_buffer(std::shared_ptr<AbstractBuffer> buffer);
-    void set_extractor(std::shared_ptr<AbstractRawExtractor> extractor);
+    void set_extractor(std::shared_ptr<AbstractPacketSections> extractor);
     bool start();
     void set_buffer_size(uint32_t size_bytes);
     void disconnect();
@@ -49,7 +49,7 @@ public:
 private:
     void initialize();
     void handle_read_data(const boost::system::error_code error, const size_t bytes_transferred);
-    void io_contex_thread();
+    void io_context_thread();
     void extract_message();
 
     std::string ip_;
@@ -74,7 +74,7 @@ private:
 
     static std::atomic<int> ID_Counter_;
 
-    std::shared_ptr<AbstractRawExtractor> msg_extractor_;
+    std::shared_ptr<AbstractPacketSections> msg_extractor_;
     std::shared_ptr<MessageExtractor> tcp_message_extractor_;
 };
 

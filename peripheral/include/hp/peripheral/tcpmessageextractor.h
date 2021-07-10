@@ -8,7 +8,7 @@ namespace peripheral {
 
 class MessageExtractor {
 public:
-    MessageExtractor(std::shared_ptr<AbstractRawExtractor> extractor, std::shared_ptr<AbstractBuffer> buffer);
+    MessageExtractor(std::shared_ptr<AbstractPacketSections> extractor, std::shared_ptr<AbstractBuffer> buffer);
     std::shared_ptr<AbstractSerializableMessage> find_message();
 private:
     void find_header();
@@ -17,7 +17,7 @@ private:
     std::string get_next_bytes(uint32_t size);
 
     //Extractor
-    std::shared_ptr<AbstractRawExtractor> extractor_;
+    std::shared_ptr<AbstractPacketSections> extractor_;
     std::shared_ptr<AbstractBuffer> buffer_;
     std::vector<Section*> packet_sections_;
 

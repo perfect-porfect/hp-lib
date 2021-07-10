@@ -1,3 +1,4 @@
+
 #include "tcpserver.h"
 #include <iostream>
 
@@ -51,6 +52,13 @@ TCPServer::~TCPServer()
     //    worker_thread_->join();
 }
 
+void TCPServer::disconnect(int id)
+{
+    auto it = all_clients_map_.find(id);
+    if (it != all_clients_map_.end())
+        all_clients_map_.erase(it);
+}
+
 void TCPServer::handle_connection()
 {
     auto socket_ = std::make_shared<boost::asio::ip::tcp::socket>(*io_context_);
@@ -65,22 +73,14 @@ void TCPServer::accept_connection(bool state)
     accept_connection_ = state;
 }
 
-//void TCPServer::send_to_all_clients(char *data, size_t size)
-//{
-
-//}
-
-//void TCPServer::send_to_client(char *data, size_t size, int id)
-//{
-
-//}
-
 void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> socket, const boost::system::error_code &error)
 {
     if(!error && accept_connection_) {
         auto tcp_client = std::make_shared<TCPClient>(socket);
         all_clients_map_[tcp_client->get_id()] = tcp_client;
+        tcp_client->notify_me_when_disconnected(std::bind(&TCPServer::disconnect, this, std::placeholders::_1));
         client_object_connections_(tcp_client.get());
+        tcp_client->start();
         client_number_++;
         handle_connection();
     }

@@ -8,7 +8,6 @@
 namespace hp {
 namespace peripheral {
 
-
 class AbstractCRC {
 public:
     //!
@@ -124,13 +123,13 @@ public:
 };
 
 struct DataSection : public Section {
-
+    uint32_t size_bytes;
 public:
     PacketSections get_type() const { return PacketSections::Data;}
 };
 
 
-class AbstractRawExtractor {
+class AbstractPacketSections {
 public:
     virtual std::vector<Section*> get_packet_sections() const = 0;
 

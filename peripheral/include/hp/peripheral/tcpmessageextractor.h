@@ -19,14 +19,14 @@ private:
     //Extractor
     std::shared_ptr<AbstractRawExtractor> extractor_;
     std::shared_ptr<AbstractBuffer> buffer_;
-    std::vector<Section> packet_sections_;
+    std::vector<Section*> packet_sections_;
 
-    HeaderSection header_;
-    CMDSection cmd_;
-    LengthSection length_;
-    CRCSection crc_;
-    DataSection data_;
-    FooterSection footer_;
+    HeaderSection* header_;
+    CMDSection* cmd_;
+    LengthSection* length_;
+    CRCSection* crc_;
+    DataSection* data_;
+    FooterSection* footer_;
 
 
 };

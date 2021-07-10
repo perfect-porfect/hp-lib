@@ -20,22 +20,24 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
     int data_len;
     uint32_t data_size = 0;
     for (auto section : packet_sections_) {
-        auto type = section.get_type();
+        auto type = section->get_type();
         switch(type) {
         case PacketSections::Header : {
-            header_ = *dynamic_cast<HeaderSection*>(&section);
+            header_ = dynamic_cast<HeaderSection*>(section);
             find_header();
             std::cout << "find header" << std::endl;
             break;
         }
         case PacketSections::CMD : {
-            std::string cmd = get_next_bytes(cmd_.size_bytes);
-            msg = cmd_.msg_factory->build_message(cmd.data());
+            cmd_ = dynamic_cast<CMDSection*>(section);
+            std::string cmd = get_next_bytes(cmd_->size_bytes);
+            msg = cmd_->msg_factory->build_message(cmd.data());
             break;
         }
         case PacketSections::Length : {
-            std::string len_size = get_next_bytes(length_.size_bytes);
-            data_len = calc_len(len_size.data(), length_.size_bytes, length_.is_msb);
+            length_ = dynamic_cast<LengthSection*>(section);
+            std::string len_size = get_next_bytes(length_->size_bytes);
+            data_len = calc_len(len_size.data(), length_->size_bytes, length_->is_msb);
             has_len = true;
             break;
         }
@@ -55,11 +57,13 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
             break;
         }
         case PacketSections::CRC : {
-            std::string crc_data = get_next_bytes(crc_.size_bytes);
-            is_crc_ok = crc_.crc_checker->is_valid((char*)data, data_size, crc_data.data(), crc_data.size());
+            crc_ = dynamic_cast<CRCSection*>(section);
+            std::string crc_data = get_next_bytes(crc_->size_bytes);
+            is_crc_ok = crc_->crc_checker->is_valid((char*)data, data_size, crc_data.data(), crc_data.size());
             break;
         }
         case PacketSections::Footer : {
+            footer_ = dynamic_cast<FooterSection*>(section);
             is_footer_ok = can_find_footer();
             break;
         }
@@ -69,8 +73,9 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
         }
         }
     }
-    if (is_crc_ok && is_footer_ok)
+    if (is_crc_ok && is_footer_ok && msg != nullptr)
         msg->deserialize((char*)data, data_size);
+    delete data;
     return msg;
 }
 
@@ -78,9 +83,10 @@ void MessageExtractor::find_header()
 {
     uint32_t header_index = 0;
     while(1) {
-        if (header_index == header_.content.size())
+        if (header_index == header_->content.size())
             break;
-        if (header_.content[header_index] ==  buffer_->read_next_byte())
+        char header = buffer_->read_next_byte();
+        if (header_->content[header_index] ==  header)
             header_index++;
         else
             header_index = 0;
@@ -132,9 +138,9 @@ int MessageExtractor::calc_len(const char * data, uint32_t size, bool is_msb)
 
 bool MessageExtractor::can_find_footer()
 {
-    for (uint32_t index = 0; index < footer_.content.size(); index++)
+    for (uint32_t index = 0; index < footer_->content.size(); index++)
         //TODO(HP) if bytes not valid store it and find to header.
-        if (footer_.content[index] ==  buffer_->read_next_byte())
+        if (footer_->content[index] ==  buffer_->read_next_byte())
             return false;
     return true;
 

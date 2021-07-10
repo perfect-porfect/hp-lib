@@ -6,6 +6,12 @@
 
 using namespace hp::peripheral;
 
+enum MyMessages {
+    FUCK = 0x01,
+    SHIT = 0x02
+};
+
+
 class FuckMessage : public AbstractSerializableMessage {
 public:
     void serialize(char *buffer, size_t size) {
@@ -15,6 +21,7 @@ public:
         memcpy((void*) & date_time_, buffer, size);
     }
     size_t get_serialize_size() const { return 9; }
+    int get_type() const { return MyMessages::FUCK; }
 
 private:
     struct DateTime{
@@ -26,6 +33,7 @@ private:
         uint8_t sec;
     };
     DateTime date_time_;
+
 };
 
 class ShitMessage : public AbstractSerializableMessage {
@@ -37,6 +45,7 @@ public:
         memcpy((void*) & student_, buffer, size);
     }
     size_t get_serialize_size() const { return 8; }
+    int get_type() const { return MyMessages::SHIT; }
 private:
     struct Student{
         int id;
@@ -45,7 +54,6 @@ private:
         uint8_t month;
         uint8_t day;
     }student_;
-
 };
 
 
@@ -62,31 +70,38 @@ public:
     }
 };
 
+class ChecksumChecker : public AbstractCRC
+{
+public:
+    bool is_valid(const char *data, size_t data_size, const char *crc_data, size_t crc_size) const { return true;}
+};
+
 class ClientPacket : public AbstractRawExtractor {
 public:
     ClientPacket(){}
 
     // AbstractRawExtractor interface
 public:
-    std::vector<Section> get_packet_sections() const {
-        std::vector<Section> sections;
+    std::vector<Section*> get_packet_sections() const {
+        std::vector<Section*> sections;
 
-        HeaderSection header;
-        header.content = std::string{static_cast<char>(0xaa), static_cast<char>(0xff)};
+        //        std::shared_ptr<HeaderSection> header = std::make_shared<HeaderSection>();
+        HeaderSection* header = new HeaderSection();
+        header->content = std::string{static_cast<char>(0xaa), static_cast<char>(0xff)};
 
-        CMDSection cmd;
-        cmd.size_bytes = 2;
-        cmd.msg_factory = std::make_shared<MessageFactory>();
+        CMDSection* cmd = new CMDSection();
+        cmd->size_bytes = 2;
+        cmd->msg_factory = std::make_shared<MessageFactory>();
 
-        LengthSection length;
-        length.include = PacketSections::Data;
-        length.is_msb = true;
-        length.size_bytes = 4;
+        LengthSection* length = new LengthSection();
+        length->include = PacketSections::Data;
+        length->is_msb = true;
+        length->size_bytes = 4;
 
-        DataSection data;
-        CRCSection crc;
-        //        crc.crc_checker = std::make_shared<AbstractCRC
-        crc.size_bytes = 4;
+        DataSection* data = new DataSection();
+        CRCSection* crc = new CRCSection();
+        crc->crc_checker = std::make_shared<ChecksumChecker>();
+        crc->size_bytes = 4;
 
         sections.push_back(header);
         sections.push_back(cmd);
@@ -163,18 +178,16 @@ void new_connection(TCPClient *client)
 
 void start_tcp_server()
 {
-    boost::asio::io_context io_context;
-    auto tcp_server = std::make_shared<TCPServer>(io_context, 8585);
+    auto tcp_server = std::make_shared<TCPServer>(8585);
     tcp_server->notify_me_for_new_connection(std::bind(new_connection, std::placeholders::_1));
     tcp_server->start();
-    io_context.run();
-//    int counter = 0;
-//    auto function = std::bind(test, 2, std::placeholders::_1);
+    //    int counter = 0;
+    //    auto function = std::bind(test, 2, std::placeholders::_1);
     while(1) {
-//        if (counter++ == 3)
-//            break;
+        //        if (counter++ == 3)
+        //            break;
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-//        all_clients[0]->async_send("asdf", 4, function);
+        //        all_clients[0]->async_send("asdf", 4, function);
     }
 }
 

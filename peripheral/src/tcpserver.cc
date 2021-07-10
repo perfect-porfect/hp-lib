@@ -4,9 +4,10 @@
 namespace hp {
 namespace peripheral {
 
-TCPServer::TCPServer(boost::asio::io_context& io_context, int port) : io_context_(io_context),
-    port_(port)
+TCPServer::TCPServer(int port)
+    : port_(port)
 {
+    io_context_ = boost::make_shared<boost::asio::io_context>();
     client_number_ = 0;
     is_running_ = false;
     accept_connection_ = true;
@@ -16,11 +17,9 @@ void TCPServer::start()
 {
     is_running_ = true;
     try {
-        acceptor_ = boost::make_shared<boost::asio::ip::tcp::acceptor>(io_context_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port_));
-//        worker_thread_ = boost::make_shared<boost::thread>(&TCPServer::worker_thread,this);
-        accept_connection();
-//        io_context_.run();
-//        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        acceptor_ = boost::make_shared<boost::asio::ip::tcp::acceptor>(*io_context_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port_));
+        handle_connection();
+        worker_thread_ = boost::make_shared<boost::thread>(&TCPServer::worker_thread,this);
         std::cout << "Start tcp server with port " << port_ << std::endl;
     }  catch (boost::wrapexcept<boost::system::system_error>& exp) {
         std::cout << "error: " << exp.what() << std::endl;
@@ -34,35 +33,36 @@ void TCPServer::notify_me_for_new_connection(std::function<void (TCPClient*)> fu
 
 void TCPServer::send_to_all_clients(char *data, size_t size)
 {
-//    for(auto client: all_clients_map_) {
-//        if (client.second->is_connected()) {
-//            client.second->send(data, size);
-//        } else {
-//            std::cout << "client's closed" << std::endl;
-//        }
-//    }
+    for(auto client: all_clients_map_) {
+        if (client.second->is_connected()) {
+            client.second->send(data, size);
+        } else {
+            std::cout << "client's closed" << std::endl;
+        }
+    }
 }
-
-//void TCPServer::accept_connection(bool state)
-//{
-//    accept_connection_ = state;
-//}
 
 TCPServer::~TCPServer()
 {
     std::cout << "~TCPServer" << std::endl;
-    io_context_.stop();
+    io_context_->stop();
     acceptor_->cancel();
     acceptor_.reset();
-//    worker_thread_->join();
+    //    worker_thread_->join();
 }
 
-void TCPServer::accept_connection()
+void TCPServer::handle_connection()
 {
-    auto socket_ = std::make_shared<boost::asio::ip::tcp::socket>(io_context_);
+    auto socket_ = std::make_shared<boost::asio::ip::tcp::socket>(*io_context_);
 
     //    tcp_client_ = std::make_shared<TCPClient>(client_number_, io_context_);
-    acceptor_->async_accept(*socket_, boost::bind(&TCPServer::handle_accept, this));
+    acceptor_->async_accept(*socket_, boost::bind(&TCPServer::handle_accept, this, socket_, boost::asio::placeholders::error()));
+
+}
+
+void TCPServer::accept_connection(bool state)
+{
+    accept_connection_ = state;
 }
 
 //void TCPServer::send_to_all_clients(char *data, size_t size)
@@ -75,24 +75,21 @@ void TCPServer::accept_connection()
 
 //}
 
-void TCPServer::handle_accept()
+void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> socket, const boost::system::error_code &error)
 {
-    if(accept_connection_) {
-//        auto tcp_client = std::make_shared<TCPClient>(client);
-//        all_clients_map_[tcp_client->get_id()] = tcp_client;
-//        client_object_connections_(tcp_client.get());
+    if(!error && accept_connection_) {
+        auto tcp_client = std::make_shared<TCPClient>(socket);
+        all_clients_map_[tcp_client->get_id()] = tcp_client;
+        client_object_connections_(tcp_client.get());
         client_number_++;
-        accept_connection();
+        handle_connection();
     }
 }
 
 void TCPServer::worker_thread()
 {
     boost::system::error_code ec;
-    while(1) {
-        io_context_.run(ec);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
+    io_context_->run(ec);
 }
 
 } // namespace peripheral

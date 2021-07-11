@@ -40,13 +40,14 @@ void TCPClient::set_buffer(AbstractBuffer* buffer)
 void TCPClient::set_extractor(AbstractPacketSections* extractor)
 {
     msg_extractor_ = extractor;
-    thread_group_.create_thread(boost::bind(&TCPClient::extract_message, this));
 }
 
 void TCPClient::initialize()
 {
     buffer_ = nullptr;
+    msg_extractor_ = nullptr;
     buffer_is_mine_ = true;
+    is_buffer_data_ = true;
     buffer_size_ = 2 * 1024 * 1024;
     receive_size_ = 0;
     send_size_= 0;
@@ -71,6 +72,10 @@ bool TCPClient::connect()
     if (buffer_ == nullptr) {
         buffer_ = new CircularBuffer(buffer_size_);
         buffer_is_mine_ = true;
+    }
+
+    if (msg_extractor_ != nullptr) {
+        thread_group_.create_thread(boost::bind(&TCPClient::extract_message, this));
     }
     socket_->async_receive(boost::asio::buffer(data_.data(), data_.size()),
                            boost::bind(&TCPClient::handle_read_data, this, boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
@@ -103,7 +108,11 @@ void TCPClient::async_send(const char *data, const uint32_t size, std::function<
 void TCPClient::handle_read_data(const boost::system::error_code error, const size_t bytes_transferred)
 {
     if (!error) {
-        buffer_->write(data_.data(), bytes_transferred);
+        if (!is_buffer_data_) {
+            data_received_connections_((char*)data_.data(), bytes_transferred, id_);
+        } else {
+            buffer_->write(data_.data(), bytes_transferred);
+        }
         socket_->async_receive(boost::asio::buffer(data_.data(), data_.size()),
                                boost::bind(&TCPClient::handle_read_data, this, boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
     } else {
@@ -131,6 +140,11 @@ uint8_t TCPClient::get_next_byte()
     return data;
 }
 
+std::string TCPClient::get_all_bytes()
+{
+
+}
+
 void TCPClient::extract_message()
 {
     tcp_message_extractor_ = std::make_shared<MessageExtractor>(msg_extractor_, buffer_);
@@ -144,6 +158,12 @@ void TCPClient::extract_message()
 boost::signals2::connection TCPClient::notify_me_when_disconnected(std::function<void (int)> func)
 {
     return disconnect_connections_.connect(func);
+}
+
+boost::signals2::connection TCPClient::dont_buffer_notify_me_data_received(std::function<void (const char *, size_t, uint32_t)> func)
+{
+    is_buffer_data_ = false;
+    return data_received_connections_.connect(func);
 }
 
 bool TCPClient::is_connected() const

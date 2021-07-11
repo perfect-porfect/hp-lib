@@ -1,4 +1,3 @@
-
 #include "tcpserver.h"
 #include <iostream>
 
@@ -16,14 +15,22 @@ TCPServer::TCPServer(int port)
 
 void TCPServer::start()
 {
-    is_running_ = true;
-    try {
-        acceptor_ = boost::make_shared<boost::asio::ip::tcp::acceptor>(*io_context_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port_));
-        handle_connection();
-        worker_thread_ = boost::make_shared<boost::thread>(&TCPServer::worker_thread,this);
-    }  catch (boost::wrapexcept<boost::system::system_error>& exp) {
-        std::cout << "error: " << exp.what() << std::endl;
+    if (!is_running_) {
+        try {
+            acceptor_ = boost::make_shared<boost::asio::ip::tcp::acceptor>(*io_context_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port_));
+            handle_connection();
+            worker_thread_ = boost::make_shared<boost::thread>(&TCPServer::worker_thread,this);
+            is_running_ = true;
+        }  catch (boost::wrapexcept<boost::system::system_error>& exp) {
+            std::cout << "error: " << exp.what() << std::endl;
+        }
     }
+}
+
+void TCPServer::stop()
+{
+    is_running_ = false;
+    acceptor_.reset();
 }
 
 void TCPServer::notify_me_for_new_connection(std::function<void (TCPClient*)> func)
@@ -53,16 +60,20 @@ TCPServer::~TCPServer()
 {
     std::cout << "~TCPServer" << std::endl;
     io_context_->stop();
-    acceptor_->cancel();
-    acceptor_.reset();
+    if (is_running_) {
+        acceptor_->cancel();
+        acceptor_.reset();
+    }
     worker_thread_->join();
 }
 
 void TCPServer::disconnect(int id)
 {
+    clients_mutex_.lock();
     auto it = all_clients_map_.find(id);
     if (it != all_clients_map_.end())
         all_clients_map_.erase(it);
+    clients_mutex_.unlock();
 }
 
 void TCPServer::handle_connection()
@@ -76,18 +87,27 @@ void TCPServer::accept_connection(bool state)
     accept_connection_ = state;
 }
 
-void TCPServer::dont_buffer_notify_me_data_received(std::function<void (char * data, size_t size, uint32_t id)> func)
-{
-    received_data_func_ = func;
-}
-
-TCPClient* TCPServer::get_client(int id) const
+void TCPServer::disconnect_client(const uint32_t id)
 {
     auto it = all_clients_map_.find(id);
     if (it != all_clients_map_.end())
-        return it->second.get();
-    else
-        return nullptr;
+        it->second->disconnect();
+}
+
+//void TCPServer::dont_buffer_notify_me_data_received(std::function<void (char * data, size_t size, uint32_t id)> func)
+//{
+//    received_data_func_ = func;
+//}
+
+TCPClient* TCPServer::get_client(uint32_t id)
+{
+    TCPClient* client = nullptr;
+    clients_mutex_.lock();
+    auto it = all_clients_map_.find(id);
+    if (it != all_clients_map_.end())
+        client = it->second.get();
+    clients_mutex_.unlock();
+    return client;
 }
 
 void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> socket, const boost::system::error_code &error)

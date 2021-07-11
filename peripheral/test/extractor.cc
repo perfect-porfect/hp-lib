@@ -3,6 +3,7 @@
 #include "circular_buffer.h"
 #include "buffer_template.h"
 #include <abstract_peripheral.h>
+#include <csignal>
 
 using namespace hp::peripheral;
 
@@ -158,40 +159,60 @@ void start_tcp_client()
     async_send(tcp_client);
     //    blocking_send(tcp_client);
 }
-std::map<int, TCPClient*> all_clients;
+
 boost::thread_group thread_client;
-void thread_for_work_client(int id) {
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-    all_clients[id]->disconnect();
-    std::cout << "disconnect client" << std::endl;
+auto tcp_server = std::make_shared<TCPServer>(8585);
+void thread_for_work_client(TCPClient *client) {
+    int counter = 0;
+    while (1) {
+        auto msg = client->get_next_packet();
+        std::cout << "find packet: " << counter++ << std::endl;
+    }
+}
+
+void received_data(const char* data, size_t size, uint32_t id)
+{
+    std::cout << "received size: " << size << std::endl;
 }
 
 void new_connection(TCPClient *client)
 {
-    all_clients[client->get_client_id()] = client;
+    auto packet = std::make_shared<ClientPacket>();
+    client->set_extractor(packet.get());
+//    client->dont_buffer_notify_me_data_received(received_data);
     std::cout << "id: " << client->get_client_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
-    thread_client.create_thread(std::bind(thread_for_work_client, client->get_client_id()));
-    //    auto extractor = std::make_shared<ClientPacket>();
-    //    client->set_extractor(extractor);
+    thread_client.create_thread(std::bind(thread_for_work_client, client));
 }
 
 void start_tcp_server()
 {
-    auto tcp_server = std::make_shared<TCPServer>(8585);
     tcp_server->notify_me_for_new_connection(std::bind(new_connection, std::placeholders::_1));
     tcp_server->start();
     std::cout << "Start tcp server with port 8585" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+//    tcp_server->stop();
+    //    std::this_thread::sleep_for(std::chrono::seconds(10));
+    //    tcp_server->start();
+
+//    std::cout << "stop server" << std::endl;
     while(1) {
-        std::this_thread::sleep_for(std::chrono::seconds(10));
-        break;
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        //        break;
     }
-    thread_client.join_all();
 }
 
 
-// aa ff d1 d2 00 00 00 66 01 02 03 04 05 06 07 08 09 aa bb cc dd
+void signal_handler( int signal_num ) {
+   std::cout << "The interrupt signal is (" << signal_num << "). \n";
+   thread_client.join_all();
+
+   // terminate program
+   exit(signal_num);
+}
+
 int main()
 {
+    signal(SIGINT, signal_handler);
     start_tcp_server();
     //    start_tcp_client();
     //    Buffer<std::shared_ptr<TCPClient>> messages_buffer_(12);

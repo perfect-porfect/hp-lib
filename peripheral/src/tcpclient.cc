@@ -46,31 +46,44 @@ void TCPClient::initialize()
     ID_Counter_++;
 }
 
-bool TCPClient::start()
+bool TCPClient::connect()
 {
     if (!is_running_) {
         if (!is_connected_) {
+            std::cout << 10  << std::endl;
             boost::system::error_code ec;
             boost::asio::ip::tcp::resolver resolver(io_context_);
             boost::asio::ip::tcp::resolver::query query(boost::asio::ip::tcp::v4(), ip_, std::to_string(port_));
             endpoint_ = *resolver.resolve(query);
             auto error = socket_->connect(endpoint_, ec);
+            std::cout << 11  << std::endl;
+
             if (error)
                 return false;
         }
+        std::cout << 12  << std::endl;
+
         is_connected_ = true;
         if (msg_extractor_ != nullptr && buffer_ == nullptr) {
             buffer_ = std::make_shared<CircularBuffer>(buffer_size_);
             tcp_message_extractor_ = std::make_shared<MessageExtractor>(msg_extractor_, buffer_);
             thread_group_.create_thread(boost::bind(&TCPClient::extract_message, this));
+            std::cout << 13  << std::endl;
+
         } else if (buffer_ == nullptr) {
             buffer_ = std::make_shared<CircularBuffer>(buffer_size_);
             thread_group_.create_thread(boost::bind(&TCPClient::io_context_thread, this));
+            std::cout << 14  << std::endl;
+
         }
+        std::cout << 15  << std::endl;
+
         socket_->async_receive(boost::asio::buffer(data_.data(), data_.size()),
                                boost::bind(&TCPClient::handle_read_data, this, boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
         is_running_ = true;
     }
+    std::cout << 16  << std::endl;
+
     return true;
 }
 
@@ -106,6 +119,7 @@ void TCPClient::handle_read_data(const boost::system::error_code error, const si
         if (is_connected_) {
             is_connected_ = false;
             disconnect_connections_(id_);
+            std::cout << "disconnect from server" << std::endl;
         }
     }
 }
@@ -142,12 +156,14 @@ boost::signals2::connection TCPClient::notify_me_when_disconnected(std::function
 
 bool TCPClient::is_connected() const
 {
-    return socket_->is_open();
+    return is_connected_;
 }
 
 void TCPClient::disconnect()
 {
+    std::cout << "close socket1" << std::endl;
     socket_->close();
+    std::cout << "close socket2" << std::endl;
     is_connected_ = false;
     is_running_ = false;
 }
@@ -192,7 +208,7 @@ TCPClient::~TCPClient()
     if (work_ != nullptr)
         work_.reset();
     thread_group_.join_all();
-    std::cout << "client dis" << std::endl;
+    socket_.reset();
 }
 
 } // namespace peripheral

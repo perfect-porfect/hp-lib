@@ -123,7 +123,7 @@ public:
 };
 
 struct DataSection : public Section {
-    uint32_t size_bytes;
+    uint32_t fix_size_bytes;
 public:
     PacketSections get_type() const { return PacketSections::Data;}
 };

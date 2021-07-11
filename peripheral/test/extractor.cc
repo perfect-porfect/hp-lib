@@ -158,23 +158,27 @@ void async_send(std::shared_ptr<TCPClient> tcp_client)
 void start_tcp_client()
 {
     auto tcp_client =  std::make_shared<TCPClient>("127.0.0.1", 8585);
-    auto test = tcp_client->start();
+    auto test = tcp_client->connect();
     if (test)
         std::cout << "Tcp client connected" << std::endl;
     async_send(tcp_client);
     //    blocking_send(tcp_client);
 }
 std::map<int, TCPClient*> all_clients;
-
+std::shared_ptr<TCPClient> client_ = nullptr;
+std::shared_ptr<std::thread> thread_client;
+void thread_for_work_client(int id) {
+//    std::this_thread::sleep_for(std::chrono::seconds(3));
+//    all_clients[id]->disconnect();
+}
 
 void new_connection(TCPClient *client)
 {
     all_clients[client->get_id()] = client;
+    thread_client = std::make_shared<std::thread>(thread_for_work_client, client->get_id());
     std::cout << "id: " << client->get_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
-    auto extractor = std::make_shared<ClientPacket>();
-    client->set_extractor(extractor);
-    auto msg = client->get_next_packet();
-    int ad = 0;
+//    auto extractor = std::make_shared<ClientPacket>();
+//    client->set_extractor(extractor);
 }
 
 void start_tcp_server()
@@ -182,6 +186,7 @@ void start_tcp_server()
     auto tcp_server = std::make_shared<TCPServer>(8585);
     tcp_server->notify_me_for_new_connection(std::bind(new_connection, std::placeholders::_1));
     tcp_server->start();
+    std::cout << "Start tcp server with port 8585" << std::endl;
     while(1) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }

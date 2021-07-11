@@ -28,12 +28,11 @@ public:
     TCPClient(std::string ip, short port);
     void set_buffer(std::shared_ptr<AbstractBuffer> buffer);
     void set_extractor(std::shared_ptr<AbstractPacketSections> extractor);
-    bool start();
+    bool connect();
     void set_buffer_size(uint32_t size_bytes);
     void disconnect();
     void async_send(const char* data, const uint32_t size, std::function<void (int)> func);
     size_t send(const char* data, const uint32_t size);
-
 
     boost::signals2::connection notify_me_when_disconnected(std::function<void (int) >func);
     std::string get_ip() const;

@@ -81,6 +81,15 @@ void TCPServer::dont_buffer_notify_me_data_received(std::function<void (char * d
     received_data_func_ = func;
 }
 
+TCPClient* TCPServer::get_client(int id) const
+{
+    auto it = all_clients_map_.find(id);
+    if (it != all_clients_map_.end())
+        return it->second.get();
+    else
+        return nullptr;
+}
+
 void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> socket, const boost::system::error_code &error)
 {
     if(!error && accept_connection_) {
@@ -88,7 +97,7 @@ void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> sock
         all_clients_map_[tcp_client->get_id()] = tcp_client;
         tcp_client->notify_me_when_disconnected(std::bind(&TCPServer::disconnect, this, std::placeholders::_1));
         client_object_connections_(tcp_client.get());
-        tcp_client->start();
+        tcp_client->connect();
         client_number_++;
         handle_connection();
     }

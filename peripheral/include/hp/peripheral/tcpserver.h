@@ -20,6 +20,7 @@ public:
     void send_to_client(char* data, size_t size, uint32_t id);
     void accept_connection(bool state);
     void dont_buffer_notify_me_data_received(std::function<void (char * data, size_t size, uint32_t id)> func);
+    TCPClient *get_client(int id) const;
     ~TCPServer();
 private:
     void disconnect(int id);

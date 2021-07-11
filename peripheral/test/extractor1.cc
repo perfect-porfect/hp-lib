@@ -4,19 +4,16 @@
 #include "buffer_template.h"
 #include <abstract_peripheral.h>
 
-//std::string data{(char)0xaa, (char)0xff, (char)0xd1, (char)0xd2, (char)0x00, (char)0x00,
-//            (char)0x00, (char)0x09, (char)0x01, (char)0x02, (char)0x03, (char)0x04,
-//            (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09, (char)0xaa,
-//            (char)0xbb, (char)0xcc, (char)0xdd};
 
 //This Sample packet include:
-//                              +------------+------------+------------------+------------------+--------------+
-// Name:                        |   Header   |    CMD     |       Len        |       Data       |     CRC      |
-//                              +------------+------------+------------------+------------------+--------------+
-// Bytes:                       |   2 Bytes  |  2 Bytes   |     4 Bytes      |    Len value     |    4 Bytes   |
-//                              +------------+------------+------------------+------------------+--------------+
-// Packet Detail:               | 0xaa 0xff  | SHIT, FUCK | First byte's msb |  Serialize Data  | Sum of Bytes |
-//                              +------------+------------+------------------+------------------+--------------+
+//
+//                        +------------+------------+------------------+------------------+--------------+------------+
+// Name:                  |   Header   |    CMD     |       Len        |       Data       |     CRC      |   Footer   |
+//                        +------------+------------+------------------+------------------+--------------+------------+
+// Bytes:                 |   2 Bytes  |  2 Bytes   |     4 Bytes      |    Len value     |    4 Bytes   |   2 Bytes  |
+//                        +------------+------------+------------------+------------------+--------------+------------+
+// Packet Detail:         | 0xaa 0xff  | SHIT, FUCK | First byte's msb |  Serialize Data  | Sum of Bytes |  0xaa 0xcc |
+//                        +------------+------------+------------------+------------------+--------------+------------+
 
 
 #define SERVER_PORT (8585)
@@ -30,16 +27,6 @@ enum MyMessages {
 };
 
 class FuckMessage : public AbstractSerializableMessage {
-public:
-    FuckMessage() { msg_size_ = sizeof (date_time_);}
-    void serialize(char *buffer, size_t size) {
-        memcpy(buffer, (void*) &date_time_, size);
-    }
-    void deserialize(const char *buffer, size_t size) {
-        memcpy((void*) & date_time_, buffer, size);
-    }
-    size_t get_serialize_size() const { return 9; }
-    int get_type() const { return MyMessages::FUCK; }
 
 private:
     struct DateTime{
@@ -53,9 +40,26 @@ private:
     DateTime date_time_;
 
     uint32_t msg_size_;
+
+public:
+    FuckMessage() { msg_size_ = sizeof (date_time_);}
+    void serialize(char *buffer, size_t size) {
+        memcpy(buffer, (void*) &date_time_, size);
+    }
+    void deserialize(const char *buffer, size_t size) {
+        memcpy((void*) & date_time_, buffer, size);
+    }
+    size_t get_serialize_size() const { return sizeof(DateTime); }
+    int get_type() const { return MyMessages::FUCK; }
+    DateTime get_date_time() const { return date_time_;}
 };
 
 class ShitMessage : public AbstractSerializableMessage {
+private:
+    struct Student{
+        int id;
+        uint8_t age;
+    }student_;
 public:
     void serialize(char *buffer, size_t size) {
         memcpy(buffer, (void*) &student_, size);
@@ -65,11 +69,7 @@ public:
     }
     size_t get_serialize_size() const { return 8; }
     int get_type() const { return MyMessages::SHIT; }
-private:
-    struct Student{
-        int id;
-        uint8_t age;
-    }student_;
+    Student get_student() const { return student_; }
 };
 
 class MessageFactory : public AbstractMessageFactory{
@@ -91,6 +91,16 @@ public:
     bool is_valid(const char *data, size_t data_size, const char *crc_data, size_t crc_size) const { return true;}
 };
 
+
+#define HEADER1         (0xaa)
+#define HEADER2         (0xff)
+#define CMD_SIZE        (2)
+#define LENGTH_SIZE     (4)
+#define CRC_SIZE        (2)
+#define FOOTER1         (0xaa)
+#define FOOTER2         (0xcc)
+
+
 class ClientPacket : public AbstractPacketSections {
 public:
     ClientPacket(){}
@@ -99,27 +109,30 @@ public:
 
         //        std::shared_ptr<HeaderSection> header = std::make_shared<HeaderSection>();
         HeaderSection* header = new HeaderSection();
-        header->content = std::string{static_cast<char>(0xaa), static_cast<char>(0xff)};
+        header->content = std::string{static_cast<char>HEADER1, static_cast<char>HEADER2};
 
         CMDSection* cmd = new CMDSection();
-        cmd->size_bytes = 2;
+        cmd->size_bytes = CMD_SIZE;
         cmd->msg_factory = std::make_shared<MessageFactory>();
 
         LengthSection* length = new LengthSection();
         length->include = PacketSections::Data;
         length->is_msb = true;
-        length->size_bytes = 4;
+        length->size_bytes = LENGTH_SIZE;
 
         DataSection* data = new DataSection();
         CRCSection* crc = new CRCSection();
         crc->crc_checker = std::make_shared<ChecksumChecker>();
-        crc->size_bytes = 4;
+        crc->size_bytes = CRC_SIZE;
 
+        FooterSection* footer = new FooterSection();
+        footer->content = std::string{static_cast<char>FOOTER1, static_cast<char>FOOTER2};
         sections.push_back(header);
         sections.push_back(cmd);
         sections.push_back(length);
         sections.push_back(data);
         sections.push_back(crc);
+        sections.push_back(footer);
 
         return sections;
     };
@@ -139,11 +152,18 @@ public:
 };
 
 std::shared_ptr<boost::thread_group> Thread_Clients_;
-void thread_for_work_client(/*TCPClient *client*/) {
+void thread_for_work_client(TCPClient *client) {
     int counter = 0;
     while (1) {
-//        auto msg = client->get_next_packet();
-        std::cout << "find packet: " << counter++ << std::endl;
+        auto msg = client->get_next_packet();
+        if (msg->get_type() == MyMessages::FUCK) {
+            auto fuck_msg = std::dynamic_pointer_cast<FuckMessage>(msg);
+            std::cout << "#" << counter++ << " FUCK_MSG  time_date: " << fuck_msg->get_date_time().year << "-" << fuck_msg->get_date_time().month << "-" << fuck_msg->get_date_time().day << " "
+                      << fuck_msg->get_date_time().hour << ":" << fuck_msg->get_date_time().min << ":" << fuck_msg->get_date_time().sec << std::endl;
+        } else if (msg->get_type() == MyMessages::SHIT) {
+            auto shit_msg = std::dynamic_pointer_cast<ShitMessage>(msg);
+            std::cout << "#" << counter++ << " SHIT_MSG  student id: " << shit_msg->get_student().id << "  age: " << shit_msg->get_student().age << std::endl;
+        }
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
@@ -152,7 +172,7 @@ void new_connection(TCPClient *client)
 {
     auto packet = std::make_shared<ClientPacket>();
     client->set_extractor(packet.get());
-    boost::thread client_thread(thread_for_work_client);
+    boost::thread client_thread(thread_for_work_client, client);
     Thread_Clients_->add_thread(&client_thread);
     std::cout << "id: " << client->get_client_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
 }
@@ -181,7 +201,7 @@ void send_data_to_server() {
             std::cout << "Can't connect to tcp server" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-    std::string data{(char)0xaa, (char)0xff, (char)0xd1, (char)0xd2, (char)0x00, (char)0x00,
+    std::string data{(char)HEADER1, (char)HEADER2, (char)0xd1, (char)0xd2, (char)0x00, (char)0x00,
                 (char)0x00, (char)0x09, (char)0x01, (char)0x02, (char)0x03, (char)0x04,
                 (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09, (char)0xaa,
                 (char)0xbb, (char)0xcc, (char)0xdd};
@@ -192,7 +212,7 @@ void send_data_to_server() {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     std::cout << "finished" << std::endl;
-//    delete buffer;
+    delete buffer;
 }
 
 int main()

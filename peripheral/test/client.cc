@@ -18,22 +18,37 @@ void disconnect_test() {
     int counter = 0;
     while (1) {
         if (!client.is_connected()) {
-            std::cout << "1" << std::endl;
             break;
         }
         if (counter == 2) {
-            std::cout << "2" << std::endl;
             client.disconnect();
         }
-        std::cout << "3" << std::endl;
         counter++;
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
 
+void disconnect_test1() {
+    TCPClient client("127.0.0.1", 8585);
+    bool con = false;
+    while (!con) {
+        con = client.connect();
+        if (!con)
+            std::cout << "Can't connect to tcp server" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    while (1) {
+        if (!client.is_connected())
+            break;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+}
+
+
 int main()
 {
-    disconnect_test();
+    disconnect_test1();
     //    TCPClient client("127.0.0.1", 8585);
     //    bool con = false;
     //    while(!con) {

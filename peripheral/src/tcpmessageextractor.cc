@@ -4,7 +4,7 @@
 namespace hp {
 namespace peripheral {
 
-MessageExtractor::MessageExtractor(std::shared_ptr<AbstractPacketSections> extractor, std::shared_ptr<AbstractBuffer> buffer)
+MessageExtractor::MessageExtractor(AbstractPacketSections *extractor, AbstractBuffer *buffer)
     : extractor_(extractor), buffer_(buffer)
 {
     packet_sections_ = extractor_->get_packet_sections();

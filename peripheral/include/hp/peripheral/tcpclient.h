@@ -26,8 +26,8 @@ class TCPClient {
 public:
     TCPClient(TCPSocketShared socket);
     TCPClient(std::string ip, short port);
-    void set_buffer(std::shared_ptr<AbstractBuffer> buffer);
-    void set_extractor(std::shared_ptr<AbstractPacketSections> extractor);
+    void set_buffer(AbstractBuffer *buffer);
+    void set_extractor(AbstractPacketSections *extractor);
     bool connect();
     void set_buffer_size(uint32_t size_bytes);
     void disconnect();
@@ -38,7 +38,7 @@ public:
     std::string get_ip() const;
     bool is_connected() const;
     short get_port() const;
-    int get_id() const;
+    int get_client_id() const;
 
     std::shared_ptr<AbstractSerializableMessage> get_next_packet();
     BufferError get_next_bytes(uint8_t *data, const uint32_t len, const uint32_t timeout_ms = 0);
@@ -53,11 +53,9 @@ private:
 
     std::string ip_;
     short port_;
-    std::shared_ptr<AbstractBuffer> buffer_;
     uint32_t buffer_size_;
     long int receive_size_;
     bool is_connected_;
-    bool is_running_;
     int id_;
     std::shared_ptr<boost::asio::ip::tcp::socket> socket_;
     boost::shared_ptr<boost::asio::io_context::work> work_;
@@ -73,7 +71,9 @@ private:
 
     static std::atomic<int> ID_Counter_;
 
-    std::shared_ptr<AbstractPacketSections> msg_extractor_;
+    bool buffer_is_mine_;
+    AbstractBuffer* buffer_;
+    AbstractPacketSections* msg_extractor_;
     std::shared_ptr<MessageExtractor> tcp_message_extractor_;
 };
 

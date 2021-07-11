@@ -81,9 +81,6 @@ public:
 class ClientPacket : public AbstractPacketSections {
 public:
     ClientPacket(){}
-
-    // AbstractRawExtractor interface
-public:
     std::vector<Section*> get_packet_sections() const {
         std::vector<Section*> sections;
 
@@ -114,9 +111,6 @@ public:
         return sections;
     };
 };
-
-
-
 
 void test(int index, int size)
 {
@@ -165,20 +159,20 @@ void start_tcp_client()
     //    blocking_send(tcp_client);
 }
 std::map<int, TCPClient*> all_clients;
-std::shared_ptr<TCPClient> client_ = nullptr;
-std::shared_ptr<std::thread> thread_client;
+boost::thread_group thread_client;
 void thread_for_work_client(int id) {
-//    std::this_thread::sleep_for(std::chrono::seconds(3));
-//    all_clients[id]->disconnect();
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    all_clients[id]->disconnect();
+    std::cout << "disconnect client" << std::endl;
 }
 
 void new_connection(TCPClient *client)
 {
-    all_clients[client->get_id()] = client;
-    thread_client = std::make_shared<std::thread>(thread_for_work_client, client->get_id());
-    std::cout << "id: " << client->get_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
-//    auto extractor = std::make_shared<ClientPacket>();
-//    client->set_extractor(extractor);
+    all_clients[client->get_client_id()] = client;
+    std::cout << "id: " << client->get_client_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
+    thread_client.create_thread(std::bind(thread_for_work_client, client->get_client_id()));
+    //    auto extractor = std::make_shared<ClientPacket>();
+    //    client->set_extractor(extractor);
 }
 
 void start_tcp_server()
@@ -188,9 +182,12 @@ void start_tcp_server()
     tcp_server->start();
     std::cout << "Start tcp server with port 8585" << std::endl;
     while(1) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+        break;
     }
+    thread_client.join_all();
 }
+
 
 // aa ff d1 d2 00 00 00 66 01 02 03 04 05 06 07 08 09 aa bb cc dd
 int main()
@@ -198,5 +195,4 @@ int main()
     start_tcp_server();
     //    start_tcp_client();
     //    Buffer<std::shared_ptr<TCPClient>> messages_buffer_(12);
-
 }

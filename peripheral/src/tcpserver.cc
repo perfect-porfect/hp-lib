@@ -55,7 +55,7 @@ TCPServer::~TCPServer()
     io_context_->stop();
     acceptor_->cancel();
     acceptor_.reset();
-    //    worker_thread_->join();
+    worker_thread_->join();
 }
 
 void TCPServer::disconnect(int id)
@@ -94,7 +94,7 @@ void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> sock
 {
     if(!error && accept_connection_) {
         auto tcp_client = std::make_shared<TCPClient>(socket);
-        all_clients_map_[tcp_client->get_id()] = tcp_client;
+        all_clients_map_[tcp_client->get_client_id()] = tcp_client;
         tcp_client->notify_me_when_disconnected(std::bind(&TCPServer::disconnect, this, std::placeholders::_1));
         client_object_connections_(tcp_client.get());
         tcp_client->connect();

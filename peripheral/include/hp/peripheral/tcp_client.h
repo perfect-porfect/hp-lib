@@ -8,7 +8,7 @@
 #include <boost/mpl/size.hpp>
 #include "abstract_peripheral.h"
 #include "abstract_buffer.h"
-#include "tcpmessageextractor.h"
+#include "message_extractor.h"
 #include "buffer_template.h"
 
 #define MAX_LENGTH (256 * 4)

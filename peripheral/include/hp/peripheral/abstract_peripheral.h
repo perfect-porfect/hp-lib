@@ -128,11 +128,15 @@ public:
     PacketSections get_type() const { return PacketSections::Data;}
 };
 
+enum class PacketErrors{
+    Wrong_CRC,
+    Wrong_Footer
+};
 
 class AbstractPacketSections {
 public:
     virtual std::vector<Section*> get_packet_sections() const = 0;
-
+    virtual void get_error_packet(PacketErrors error, char* data, size_t size) = 0;
 };
 
 } // namespace peripheral

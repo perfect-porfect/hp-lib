@@ -9,8 +9,8 @@ find_package(Boost REQUIRED COMPONENTS system thread chrono regex filesystem)
 
 #include_directories(${GTEST_INCLUDE_DIRS})
 
-add_executable(extractor extractor.cc )
-target_link_libraries(extractor PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
+add_executable(extractor1 extractor1.cc )
+target_link_libraries(extractor1 PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(client client.cc)
 target_link_libraries(client PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})

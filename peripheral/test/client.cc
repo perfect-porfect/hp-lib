@@ -1,10 +1,8 @@
 #include <iostream>
-#include "tcpclient.h"
+#include "tcp_client.h"
 #include "circular_buffer.h"
 
 using namespace hp::peripheral;
-
-// aa ff d1 d2 00 00 00 09 01 02 03 04 05 06 07 08 09 aa bb cc dd
 
 void disconnect_test() {
     TCPClient client("127.0.0.1", 8585);

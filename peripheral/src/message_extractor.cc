@@ -1,4 +1,4 @@
-#include "tcpmessageextractor.h"
+#include "message_extractor.h"
 #include <iostream>
 
 namespace hp {
@@ -13,7 +13,6 @@ MessageExtractor::MessageExtractor(AbstractPacketSections *extractor, AbstractBu
 std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
 {
     std::shared_ptr<AbstractSerializableMessage> msg;
-//    uint8_t* data = nullptr;
     std::vector<uint8_t> data;
     bool is_crc_ok = true;
     bool is_footer_ok = true;
@@ -45,11 +44,9 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
         case PacketSections::Data : {
             if (has_len) {
                 data.resize(data_len);
-//                data = new uint8_t[data_len];
                 data_size = data_len;
             } else {
                 data_size = msg->get_serialize_size();
-//                data = new uint8_t[data_size];
                 data.resize(data_size);
             }
 
@@ -63,6 +60,8 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
             crc_ = dynamic_cast<CRCSection*>(section);
             std::string crc_data = get_next_bytes(crc_->size_bytes);
             is_crc_ok = crc_->crc_checker->is_valid((char*)data.data(), data_size, crc_data.data(), crc_data.size());
+//            if (!is_crc_ok)
+//                extractor_->get_error_packet(PacketErrors::Wrong_CRC);
             break;
         }
         case PacketSections::Footer : {
@@ -90,8 +89,10 @@ void MessageExtractor::find_header()
         char header = buffer_->read_next_byte();
         if (header_->content[header_index] ==  header)
             header_index++;
-        else
+        else {
+            std::cout << "cant find header" << std::endl;
             header_index = 0;
+        }
     }
 }
 

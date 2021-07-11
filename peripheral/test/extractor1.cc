@@ -1,9 +1,26 @@
 #include <iostream>
-#include "tcpserver.h"
+#include "tcp_server.h"
 #include "circular_buffer.h"
 #include "buffer_template.h"
 #include <abstract_peripheral.h>
-#include <csignal>
+
+//std::string data{(char)0xaa, (char)0xff, (char)0xd1, (char)0xd2, (char)0x00, (char)0x00,
+//            (char)0x00, (char)0x09, (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+//            (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09, (char)0xaa,
+//            (char)0xbb, (char)0xcc, (char)0xdd};
+
+//This Sample packet include:
+//                              +------------+------------+------------------+------------------+--------------+
+// Name:                        |   Header   |    CMD     |       Len        |       Data       |     CRC      |
+//                              +------------+------------+------------------+------------------+--------------+
+// Bytes:                       |   2 Bytes  |  2 Bytes   |     4 Bytes      |    Len value     |    4 Bytes   |
+//                              +------------+------------+------------------+------------------+--------------+
+// Packet Detail:               | 0xaa 0xff  | SHIT, FUCK | First byte's msb |  Serialize Data  | Sum of Bytes |
+//                              +------------+------------+------------------+------------------+--------------+
+
+
+#define SERVER_PORT (8585)
+#define SERVER_IP   "127.0.0.1"
 
 using namespace hp::peripheral;
 
@@ -11,7 +28,6 @@ enum MyMessages {
     FUCK = 0x01,
     SHIT = 0x02
 };
-
 
 class FuckMessage : public AbstractSerializableMessage {
 public:
@@ -53,12 +69,8 @@ private:
     struct Student{
         int id;
         uint8_t age;
-        uint8_t year;
-        uint8_t month;
-        uint8_t day;
     }student_;
 };
-
 
 class MessageFactory : public AbstractMessageFactory{
 public:
@@ -111,109 +123,82 @@ public:
 
         return sections;
     };
+    void get_error_packet(PacketErrors error, char *data, size_t size){
+        switch (error) {
+        case PacketErrors::Wrong_CRC : {
+                std::cout << "Wrong CRC" << std::endl;
+        }
+        case PacketErrors::Wrong_Footer : {
+                std::cout << "Wrong Footer" << std::endl;
+        }
+        default: {
+            std::cout << "there is a new error" << std::endl;
+        }
+        }
+    }
 };
 
-void test(int index, int size)
-{
-    std::cout << "index : " << index  << " size: " << size << std::endl;
-}
-
-void blocking_send(std::shared_ptr<TCPClient> tcp_client)
-{
-    std::string data = "hello\n";
-    int counter = 0;
-    while(1) {
-        int bytes = tcp_client->send(data.data(), data.size());
-        if (int(data.size()) == bytes)
-            break;
-        if (counter  == 1) {
-            tcp_client->disconnect();
-        }
-        counter++;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-}
-
-void async_send(std::shared_ptr<TCPClient> tcp_client)
-{
-    std::string data = "hello\n";
-    int counter = 0;
-    auto function = std::bind(test, 2, std::placeholders::_1);
-    while(1) {
-        tcp_client->async_send(data.data(), data.size(), function);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        if (counter  == 1) {
-            tcp_client->disconnect();
-            break;
-        }
-        counter++;
-    }
-}
-
-void start_tcp_client()
-{
-    auto tcp_client =  std::make_shared<TCPClient>("127.0.0.1", 8585);
-    auto test = tcp_client->connect();
-    if (test)
-        std::cout << "Tcp client connected" << std::endl;
-    async_send(tcp_client);
-    //    blocking_send(tcp_client);
-}
-
-boost::thread_group thread_client;
-auto tcp_server = std::make_shared<TCPServer>(8585);
-void thread_for_work_client(TCPClient *client) {
+std::shared_ptr<boost::thread_group> Thread_Clients_;
+void thread_for_work_client(/*TCPClient *client*/) {
     int counter = 0;
     while (1) {
-        auto msg = client->get_next_packet();
+//        auto msg = client->get_next_packet();
         std::cout << "find packet: " << counter++ << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-}
-
-void received_data(const char* data, size_t size, uint32_t id)
-{
-    std::cout << "received size: " << size << std::endl;
 }
 
 void new_connection(TCPClient *client)
 {
     auto packet = std::make_shared<ClientPacket>();
     client->set_extractor(packet.get());
-//    client->dont_buffer_notify_me_data_received(received_data);
+    boost::thread client_thread(thread_for_work_client);
+    Thread_Clients_->add_thread(&client_thread);
     std::cout << "id: " << client->get_client_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
-    thread_client.create_thread(std::bind(thread_for_work_client, client));
 }
 
 void start_tcp_server()
 {
+    auto tcp_server = std::make_shared<TCPServer>(SERVER_PORT);
     tcp_server->notify_me_for_new_connection(std::bind(new_connection, std::placeholders::_1));
     tcp_server->start();
     std::cout << "Start tcp server with port 8585" << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-//    tcp_server->stop();
-    //    std::this_thread::sleep_for(std::chrono::seconds(10));
-    //    tcp_server->start();
-
-//    std::cout << "stop server" << std::endl;
     while(1) {
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-        //        break;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
 
 
-void signal_handler( int signal_num ) {
-   std::cout << "The interrupt signal is (" << signal_num << "). \n";
-   thread_client.join_all();
 
-   // terminate program
-   exit(signal_num);
+void send_data_to_server() {
+    TCPClient client(SERVER_IP, SERVER_PORT);
+    bool con = false;
+    auto buffer = new hp::peripheral::CircularBuffer();
+    client.set_buffer(buffer);
+    while (!con) {
+        con = client.connect();
+        if (!con)
+            std::cout << "Can't connect to tcp server" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    std::string data{(char)0xaa, (char)0xff, (char)0xd1, (char)0xd2, (char)0x00, (char)0x00,
+                (char)0x00, (char)0x09, (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+                (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09, (char)0xaa,
+                (char)0xbb, (char)0xcc, (char)0xdd};
+    while (1) {
+        if (!client.is_connected())
+            break;
+        client.send(data.data(), data.length());
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    std::cout << "finished" << std::endl;
+//    delete buffer;
 }
 
 int main()
 {
-    signal(SIGINT, signal_handler);
-    start_tcp_server();
-    //    start_tcp_client();
-    //    Buffer<std::shared_ptr<TCPClient>> messages_buffer_(12);
+    Thread_Clients_ = std::make_shared<boost::thread_group>();
+    Thread_Clients_->create_thread(start_tcp_server);
+    Thread_Clients_->create_thread(send_data_to_server);
+    Thread_Clients_->join_all();
 }

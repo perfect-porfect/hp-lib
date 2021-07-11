@@ -5,7 +5,7 @@
 #include <boost/thread.hpp>
 #include <memory>
 #include <thread>
-#include "tcpclient.h"
+#include "tcp_client.h"
 
 namespace hp {
 namespace peripheral {

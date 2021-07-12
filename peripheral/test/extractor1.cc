@@ -91,7 +91,6 @@ public:
     bool is_valid(const char *data, size_t data_size, const char *crc_data, size_t crc_size) const { return true;}
 };
 
-
 #define HEADER1         (0xaa)
 #define HEADER2         (0xff)
 #define CMD_SIZE        (2)
@@ -99,7 +98,6 @@ public:
 #define CRC_SIZE        (2)
 #define FOOTER1         (0xaa)
 #define FOOTER2         (0xcc)
-
 
 class ClientPacket : public AbstractPacketSections {
 public:
@@ -136,13 +134,14 @@ public:
 
         return sections;
     };
+
     void get_error_packet(PacketErrors error, char *data, size_t size){
         switch (error) {
         case PacketErrors::Wrong_CRC : {
-                std::cout << "Wrong CRC" << std::endl;
+            std::cout << "Wrong CRC" << std::endl;
         }
         case PacketErrors::Wrong_Footer : {
-                std::cout << "Wrong Footer" << std::endl;
+            std::cout << "Wrong Footer" << std::endl;
         }
         default: {
             std::cout << "there is a new error" << std::endl;
@@ -151,14 +150,16 @@ public:
     }
 };
 
+std::shared_ptr<std::thread> Client_Thread;
 std::shared_ptr<boost::thread_group> Thread_Clients_;
+
 void thread_for_work_client(TCPClient *client) {
     int counter = 0;
     while (1) {
         auto msg = client->get_next_packet();
         if (msg->get_type() == MyMessages::FUCK) {
             auto fuck_msg = std::dynamic_pointer_cast<FuckMessage>(msg);
-            std::cout << "#" << counter++ << " FUCK_MSG  time_date: " << fuck_msg->get_date_time().year << "-" << fuck_msg->get_date_time().month << "-" << fuck_msg->get_date_time().day << " "
+            std::cout << "#" << counter++ << " FUCK_MSG time_date: " << fuck_msg->get_date_time().year << "-" << fuck_msg->get_date_time().month << "-" << fuck_msg->get_date_time().day << " "
                       << fuck_msg->get_date_time().hour << ":" << fuck_msg->get_date_time().min << ":" << fuck_msg->get_date_time().sec << std::endl;
         } else if (msg->get_type() == MyMessages::SHIT) {
             auto shit_msg = std::dynamic_pointer_cast<ShitMessage>(msg);
@@ -172,8 +173,7 @@ void new_connection(TCPClient *client)
 {
     auto packet = std::make_shared<ClientPacket>();
     client->set_extractor(packet.get());
-    boost::thread client_thread(thread_for_work_client, client);
-    Thread_Clients_->add_thread(&client_thread);
+    Client_Thread = std::make_shared<std::thread>(thread_for_work_client, client);
     std::cout << "id: " << client->get_client_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
 }
 
@@ -188,8 +188,6 @@ void start_tcp_server()
     }
 }
 
-
-
 void send_data_to_server() {
     TCPClient client(SERVER_IP, SERVER_PORT);
     bool con = false;
@@ -201,14 +199,18 @@ void send_data_to_server() {
             std::cout << "Can't connect to tcp server" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+
     std::string data{(char)HEADER1, (char)HEADER2, (char)0xd1, (char)0xd2, (char)0x00, (char)0x00,
                 (char)0x00, (char)0x09, (char)0x01, (char)0x02, (char)0x03, (char)0x04,
                 (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09, (char)0xaa,
-                (char)0xbb, (char)0xcc, (char)0xdd};
+                (char)0xbb, (char)0xcc, (char)0xdd };
+
     while (1) {
         if (!client.is_connected())
             break;
-        client.send(data.data(), data.length());
+        int result = client.send(data.data(), data.length());
+        if (result != int(data.length()))
+            std::cout << "Cant send data to server" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     std::cout << "finished" << std::endl;
@@ -221,4 +223,5 @@ int main()
     Thread_Clients_->create_thread(start_tcp_server);
     Thread_Clients_->create_thread(send_data_to_server);
     Thread_Clients_->join_all();
+    Client_Thread->join();
 }

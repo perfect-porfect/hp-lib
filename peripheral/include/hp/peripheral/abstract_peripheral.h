@@ -130,7 +130,8 @@ public:
 
 enum class PacketErrors{
     Wrong_CRC,
-    Wrong_Footer
+    Wrong_Footer,
+    Wrong_CMD
 };
 
 class AbstractPacketSections {

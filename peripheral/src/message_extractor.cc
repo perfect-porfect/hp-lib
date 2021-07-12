@@ -25,13 +25,18 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
         case PacketSections::Header : {
             header_ = dynamic_cast<HeaderSection*>(section);
             find_header();
-            std::cout << "find header" << std::endl;
+            for (char c : header_->content)
+                packet_.push_back(c);
             break;
         }
         case PacketSections::CMD : {
             cmd_ = dynamic_cast<CMDSection*>(section);
             std::string cmd = get_next_bytes(cmd_->size_bytes);
+            for (char c : cmd)
+                packet_.push_back(c);
             msg = cmd_->msg_factory->build_message(cmd.data());
+            if (msg == nullptr)
+                extractor_->get_error_packet(PacketErrors::Wrong_CMD, packet_.data(), packet_.size());
             break;
         }
         case PacketSections::Length : {
@@ -52,7 +57,7 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
 
             auto buf_ret = buffer_->read(data.data(), data_size);
             if (buf_ret != BufferError::BUF_NOERROR) {
-                std::cout << "fucking buffer" << std::endl;
+                std::cout << "Fucking buffer" << std::endl;
             }
             break;
         }

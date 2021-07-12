@@ -27,8 +27,7 @@ private:
     CRCSection* crc_;
     DataSection* data_;
     FooterSection* footer_;
-
-
+    std::string packet_;
 };
 
 } // namespace peripheral

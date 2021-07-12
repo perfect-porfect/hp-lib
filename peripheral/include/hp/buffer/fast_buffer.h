@@ -17,7 +17,7 @@ class FastBuffer : public AbstractBuffer
 public:
     FastBuffer(uint32_t size = 2 * 1024 * 1024);
 
-    BufferError read(uint8_t *data, const uint32_t len, const uint32_t timeout);
+    BufferError read(uint8_t *data, const uint32_t len, const uint32_t timeout = 0);
     BufferError write(const uint8_t *data, const uint32_t len);
     uint8_t read_next_byte();
 

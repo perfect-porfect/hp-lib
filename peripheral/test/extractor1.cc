@@ -5,8 +5,8 @@
 #include <abstract_peripheral.h>
 
 
-//This Sample packet include:
-//
+//The wire format of a simple packet
+//                        0            2            6                 10
 //                        +------------+------------+------------------+------------------+--------------+------------+
 // Name:                  |   Header   |    CMD     |       Len        |       Data       |     CRC      |   Footer   |
 //                        +------------+------------+------------------+------------------+--------------+------------+

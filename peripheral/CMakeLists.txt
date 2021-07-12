@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.0)
 
 set(MODULE_NAME peripheral)
 
-file(GLOB SOURCES src/*.cc src/buffer/*.cc include/hp/peripheral/*.h include/hp/buffer/*.h)
+file(GLOB SOURCES src/*.cc src/buffer/*.cc include/hp/peripheral/*.h include/hp/peripheral/*.hpp include/hp/buffer/*.h )
 set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s")
 #set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s")

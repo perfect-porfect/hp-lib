@@ -29,7 +29,6 @@ private:
     const DataSection* data_;
     const FooterSection* footer_;
 
-    std::string packet_;
 
 
     bool is_header_exist_;

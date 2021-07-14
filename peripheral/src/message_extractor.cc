@@ -63,28 +63,28 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
 {
     std::shared_ptr<AbstractSerializableMessage> msg = nullptr;
     std::vector<uint8_t> data;
-    packet_.clear();
-    bool is_crc_ok = true;
-    bool is_footer_ok = true;
-    int data_len;
-    uint32_t data_size = 0;
     bool is_find_message = false;
     while(!is_find_message) {
+        std::string packet;
+        bool is_crc_ok = true;
+        bool is_footer_ok = true;
+        int data_len;
+        uint32_t data_size = 0;
         for (auto section : packet_sections_) {
             auto type = section->get_type();
             switch(type) {
             case PacketSections::Header : {
                 find_header();
-                fill_packet(packet_, header_->content);
-                std::copy(header_->content.begin(), header_->content.end(), packet_.begin());
+                fill_packet(packet, header_->content);
+                std::copy(header_->content.begin(), header_->content.end(), packet.begin());
                 break;
             }
             case PacketSections::CMD : {
                 std::string cmd = get_next_bytes(cmd_->size_bytes);
                 msg = cmd_->msg_factory->build_message(cmd.data());
-                fill_packet(packet_, cmd);
+                fill_packet(packet, cmd);
                 if (msg == nullptr)
-                    extractor_->get_error_packet(PacketErrors::Wrong_CMD, packet_.data(), packet_.size());
+                    extractor_->get_error_packet(PacketErrors::Wrong_CMD, packet.data(), packet.size());
                 is_cmd_exist_ = true;
                 break;
             }
@@ -92,7 +92,7 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
                 std::string len_size = get_next_bytes(length_->size_bytes);
                 data_len = calc_len(len_size.data(), length_->size_bytes, length_->is_first_byte_msb);
                 is_length_exist_ = true;
-                fill_packet(packet_, len_size);
+                fill_packet(packet, len_size);
                 break;
             }
             case PacketSections::Data : {
@@ -108,7 +108,7 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
                     data.resize(data_size);
                 }
                 auto buf_ret = buffer_->read(data.data(), data_size);
-                fill_packet(packet_, data);
+                fill_packet(packet, data);
                 if (buf_ret != BufferError::BUF_NOERROR) {
                     std::cout << "Fucking buffer" << std::endl;
                 }
@@ -117,15 +117,14 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
             case PacketSections::CRC : {
                 std::string crc_data = get_next_bytes(crc_->size_bytes);
                 is_crc_ok = crc_->crc_checker->is_valid((char*)data.data(), data_size, crc_data.data(), crc_data.size());
-                fill_packet(packet_, crc_data);
+                fill_packet(packet, crc_data);
                 break;
             }
             case PacketSections::Footer : {
                 std::string footer = get_next_bytes(footer_->content.size());
-
                 if (footer.compare(footer_->content) != 0)
                     is_footer_ok = false;
-                fill_packet(packet_, footer);
+                fill_packet(packet, footer);
                 break;
             }
             case PacketSections::Other :{
@@ -134,7 +133,13 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
             }
             }
         }
-
+        if (!is_crc_ok) {
+            extractor_->get_error_packet(PacketErrors::Wrong_CRC, packet.data(), packet.size());
+            continue;
+        } else if (!is_footer_ok) {
+            extractor_->get_error_packet(PacketErrors::Wrong_Footer, packet.data(), packet.size());
+            continue;
+        }
         if (is_crc_ok && is_footer_ok && msg != nullptr) {
             msg->deserialize((char*)data.data(), data_size);
             is_find_message = true;
@@ -153,7 +158,6 @@ void MessageExtractor::find_header()
         if (header_->content[header_index] ==  header)
             header_index++;
         else {
-            std::cout << "cant find header" << std::endl;
             header_index = 0;
         }
     }

@@ -2,7 +2,8 @@
 #include "tcp_server.h"
 #include "circular_buffer.h"
 #include "buffer_template.h"
-#include <abstract_peripheral.h>
+#include "abstract_peripheral.h"
+#include "fast_buffer.h"
 
 
 //The wire format of a simple packet
@@ -125,7 +126,7 @@ public:
 #define CMD_SIZE        (2)
 #define LENGTH_SIZE     (2)
 #define CRC_SIZE        (2)
-#define FOOTER1         (0xaa)
+#define FOOTER1         (0xbb)
 #define FOOTER2         (0xcc)
 
 class ClientPacket : public AbstractPacketSections {
@@ -175,9 +176,9 @@ public:
             return WhatFuckingDo::Find_Header;
         }
         default: {
-            std::cout << "there is a new error" << std::endl;
-        }
+            std::cout << "There is a new error" << std::endl;
             return WhatFuckingDo::Find_Header;
+        }
         }
     }
 };
@@ -223,7 +224,7 @@ void start_tcp_server()
 void send_data_to_server() {
     TCPClient client(SERVER_IP, SERVER_PORT);
     bool con = false;
-    auto buffer = new hp::peripheral::CircularBuffer();
+    auto buffer = new hp::peripheral::FastBuffer();
     client.set_buffer(buffer);
     while (!con) {
         con = client.connect();
@@ -233,17 +234,27 @@ void send_data_to_server() {
     }
 
     std::vector<std::string> all_data;
-    std::string fuck_message_ok{(char)HEADER1, (char)HEADER2, (char)0xd1,    (char)0xd2, (char)0x00, (char)0x09,
-                                (char)0x15,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09,
-                                (char)0x38,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
+    std::string fuck_message_ok      {(char)HEADER1, (char)HEADER2, (char)0xd1,    (char)0xd2, (char)0x00, (char)0x09,
+                (char)0x15,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09,
+                (char)0x38,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
 
-    std::string shit_message_ok{(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
-                                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
-                                (char)0x24,    (char)0x00,    (char)FOOTER1, (char)FOOTER2};
+    std::string shit_message_ok      {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
+                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
+                (char)0x24,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
 
+    std::string shit_message_crc     {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
+                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
+                (char)0x22,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
+
+    std::string shit_message_footer  {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
+                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
+                (char)0x24,    (char)0x00 };
 
     all_data.push_back(fuck_message_ok);
     all_data.push_back(shit_message_ok);
+    all_data.push_back(shit_message_crc);
+    all_data.push_back(shit_message_footer);
+    all_data.push_back(fuck_message_ok);
 
     while (1) {
         if (!client.is_connected())
@@ -252,7 +263,7 @@ void send_data_to_server() {
             int result = client.send(data.data(), data.length());
             if (result != int(data.length()))
                 std::cout << "Cant send data to server" << std::endl;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
     }
     std::cout << "finished" << std::endl;

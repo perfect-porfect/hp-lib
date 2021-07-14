@@ -18,6 +18,7 @@ public:
     //! \param crc_size size of crc
     //! \return true mean the crc match with data.
     //!
+    //!
     virtual bool is_valid(const char* data, size_t data_size, const char* crc_data, size_t crc_size) const = 0;
 };
 
@@ -98,7 +99,7 @@ public:
 struct LengthSection : public Section {
     uint32_t size_bytes;
     PacketSections include;
-    bool is_msb;
+    bool is_first_byte_msb;
 public:
     PacketSections get_type() const { return PacketSections::Length;}
 };
@@ -134,10 +135,15 @@ enum class PacketErrors{
     Wrong_CMD
 };
 
+enum class WhatFuckingDo{
+    Find_Header,
+
+};
+
 class AbstractPacketSections {
 public:
     virtual std::vector<Section*> get_packet_sections() const = 0;
-    virtual void get_error_packet(PacketErrors error, char* data, size_t size) = 0;
+    virtual WhatFuckingDo get_error_packet(PacketErrors error, const char* data, size_t size) = 0;
 };
 
 } // namespace peripheral

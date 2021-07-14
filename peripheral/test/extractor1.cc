@@ -23,8 +23,27 @@ using namespace hp::peripheral;
 
 enum MyMessages {
     FUCK = 0x01,
-    SHIT = 0x02
+    SHIT = 0x02,
+    Wrong = 0x03
 };
+
+
+
+class WrongMessage : public AbstractSerializableMessage {
+
+private:
+    uint32_t msg_size_;
+
+public:
+    WrongMessage() { msg_size_ = 0; }
+    void serialize(char *buffer, size_t size) {
+    }
+    void deserialize(const char *buffer, size_t size) {
+    }
+    size_t get_serialize_size() const { return msg_size_; }
+    int get_type() const { return MyMessages::Wrong; }
+};
+
 
 class FuckMessage : public AbstractSerializableMessage {
 
@@ -67,7 +86,7 @@ public:
     void deserialize(const char *buffer, size_t size) {
         memcpy((void*) & student_, buffer, size);
     }
-    size_t get_serialize_size() const { return 8; }
+    size_t get_serialize_size() const { return 5; }
     int get_type() const { return MyMessages::SHIT; }
     Student get_student() const { return student_; }
 };
@@ -77,10 +96,10 @@ public:
     std::shared_ptr<AbstractSerializableMessage> build_message(const std::string cmd) {
         if (cmd[0] == (char)0xd1 && cmd[1] == char(0xd2))
             return std::make_shared<FuckMessage>();
-        else if (cmd[0] == (char)0xd1 && cmd[1] == char(0xd2))
+        else if (cmd[0] == (char)0xd2 && cmd[1] == char(0xd3))
             return std::make_shared<ShitMessage>();
         else
-            return std::make_shared<FuckMessage>();
+            return std::make_shared<WrongMessage>();
         return nullptr;
     }
 };
@@ -88,13 +107,23 @@ public:
 class ChecksumChecker : public AbstractCRC
 {
 public:
-    bool is_valid(const char *data, size_t data_size, const char *crc_data, size_t crc_size) const { return true;}
+    bool is_valid(const char *data, size_t data_size, const char *crc_data, size_t crc_size) const {
+        (void)crc_size;
+        short crc_val = 0;
+        for (uint32_t i = 0 ; i < data_size; i++)
+            crc_val += data[i];
+        short crc_data_val = *((short *)(crc_data));
+        if (crc_data_val != crc_val)
+            return false;
+        else
+            return true;
+    }
 };
 
 #define HEADER1         (0xaa)
 #define HEADER2         (0xff)
 #define CMD_SIZE        (2)
-#define LENGTH_SIZE     (4)
+#define LENGTH_SIZE     (2)
 #define CRC_SIZE        (2)
 #define FOOTER1         (0xaa)
 #define FOOTER2         (0xcc)
@@ -115,7 +144,7 @@ public:
 
         LengthSection* length = new LengthSection();
         length->include = PacketSections::Data;
-        length->is_msb = true;
+        length->is_first_byte_msb = true;
         length->size_bytes = LENGTH_SIZE;
 
         DataSection* data = new DataSection();
@@ -135,17 +164,20 @@ public:
         return sections;
     };
 
-    void get_error_packet(PacketErrors error, char *data, size_t size){
+    WhatFuckingDo get_error_packet(PacketErrors error, const char *data, size_t size){
         switch (error) {
         case PacketErrors::Wrong_CRC : {
             std::cout << "Wrong CRC" << std::endl;
+            return WhatFuckingDo::Find_Header;
         }
         case PacketErrors::Wrong_Footer : {
             std::cout << "Wrong Footer" << std::endl;
+            return WhatFuckingDo::Find_Header;
         }
         default: {
             std::cout << "there is a new error" << std::endl;
         }
+            return WhatFuckingDo::Find_Header;
         }
     }
 };
@@ -159,11 +191,11 @@ void thread_for_work_client(TCPClient *client) {
         auto msg = client->get_next_packet();
         if (msg->get_type() == MyMessages::FUCK) {
             auto fuck_msg = std::dynamic_pointer_cast<FuckMessage>(msg);
-            std::cout << "#" << counter++ << " FUCK_MSG time_date: " << fuck_msg->get_date_time().year << "-" << fuck_msg->get_date_time().month << "-" << fuck_msg->get_date_time().day << " "
-                      << fuck_msg->get_date_time().hour << ":" << fuck_msg->get_date_time().min << ":" << fuck_msg->get_date_time().sec << std::endl;
+            std::cout << "#" << counter++ << " FUCK_MSG time_date: " << fuck_msg->get_date_time().year << "-" << (int)fuck_msg->get_date_time().month << "-" << (int)fuck_msg->get_date_time().day << " "
+                      << (int)fuck_msg->get_date_time().hour << ":" << (int)fuck_msg->get_date_time().min << ":" << (int)fuck_msg->get_date_time().sec << std::endl;
         } else if (msg->get_type() == MyMessages::SHIT) {
             auto shit_msg = std::dynamic_pointer_cast<ShitMessage>(msg);
-            std::cout << "#" << counter++ << " SHIT_MSG  student id: " << shit_msg->get_student().id << "  age: " << shit_msg->get_student().age << std::endl;
+            std::cout << "#" << counter++ << " SHIT_MSG  student id: " << shit_msg->get_student().id << "  age: " << (int)shit_msg->get_student().age << std::endl;
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
@@ -200,18 +232,28 @@ void send_data_to_server() {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
-    std::string data{(char)HEADER1, (char)HEADER2, (char)0xd1, (char)0xd2, (char)0x00, (char)0x00,
-                (char)0x00, (char)0x09, (char)0x01, (char)0x02, (char)0x03, (char)0x04,
-                (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09, (char)0xaa,
-                (char)0xbb, (char)0xcc, (char)0xdd };
+    std::vector<std::string> all_data;
+    std::string fuck_message_ok{(char)HEADER1, (char)HEADER2, (char)0xd1,    (char)0xd2, (char)0x00, (char)0x09,
+                                (char)0x15,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09,
+                                (char)0x38,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
+
+    std::string shit_message_ok{(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
+                                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
+                                (char)0x24,    (char)0x00,    (char)FOOTER1, (char)FOOTER2};
+
+
+    all_data.push_back(fuck_message_ok);
+    all_data.push_back(shit_message_ok);
 
     while (1) {
         if (!client.is_connected())
             break;
-        int result = client.send(data.data(), data.length());
-        if (result != int(data.length()))
-            std::cout << "Cant send data to server" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        for(auto data : all_data) {
+            int result = client.send(data.data(), data.length());
+            if (result != int(data.length()))
+                std::cout << "Cant send data to server" << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
     }
     std::cout << "finished" << std::endl;
     delete buffer;

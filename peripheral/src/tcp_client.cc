@@ -145,13 +145,17 @@ std::string TCPClient::get_all_bytes()
 
 }
 
+void TCPClient::check_line_state()
+{
+
+}
+
 void TCPClient::extract_message()
 {
     tcp_message_extractor_ = std::make_shared<MessageExtractor>(msg_extractor_, buffer_);
     while(is_connected_) {
         auto msg = tcp_message_extractor_->find_message();
         messages_buffer_.write(msg);
-        std::cout << "find message with id: " << msg->get_type() << std::endl;
     }
 }
 

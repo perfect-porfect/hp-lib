@@ -49,7 +49,7 @@ public:
     uint8_t get_next_byte();
     std::string get_all_bytes();
     uint32_t get_remain_bytes() const;
-
+    void check_line_state();
 
     void start_print_send_receive_rate();
     ~TCPClient();

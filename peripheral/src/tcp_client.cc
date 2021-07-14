@@ -28,11 +28,11 @@ TCPClient::TCPClient(std::string ip, short port)
 void TCPClient::set_buffer(AbstractBuffer* buffer)
 {
     //TODO(HP): lock this and copy data to new buffer
-    if (buffer_is_mine_) {
-        delete buffer_;
-    } else {
+//    if (buffer_is_mine_) {
+//        delete buffer_;
+//    } else {
 
-    }
+//    }
     buffer_ = buffer;
     buffer_is_mine_ = false;
 }
@@ -48,7 +48,7 @@ void TCPClient::initialize()
     msg_extractor_ = nullptr;
     buffer_is_mine_ = true;
     is_buffer_data_ = true;
-    buffer_size_ = 2 * 1024 * 1024;
+    buffer_size_ = 10 * 1024 * 1024;
     receive_size_ = 0;
     send_size_= 0;
     id_ = ID_Counter_;
@@ -155,6 +155,10 @@ void TCPClient::extract_message()
     tcp_message_extractor_ = std::make_shared<MessageExtractor>(msg_extractor_, buffer_);
     while(is_connected_) {
         auto msg = tcp_message_extractor_->find_message();
+        if (msg == nullptr) {
+            std::cout << "fucking null msg" << std::endl;
+            exit(1);
+        }
         messages_buffer_.write(msg);
     }
 }

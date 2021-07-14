@@ -14,3 +14,6 @@ target_link_libraries(extractor1 PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMA
 
 add_executable(client client.cc)
 target_link_libraries(client PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
+
+add_executable(buffer buffer.cc)
+target_link_libraries(buffer PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})

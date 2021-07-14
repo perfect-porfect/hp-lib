@@ -192,18 +192,21 @@ void thread_for_work_client(TCPClient *client) {
         auto msg = client->get_next_packet();
         if (msg->get_type() == MyMessages::FUCK) {
             auto fuck_msg = std::dynamic_pointer_cast<FuckMessage>(msg);
-            std::cout << "#" << counter++ << " FUCK_MSG time_date: " << fuck_msg->get_date_time().year << "-" << (int)fuck_msg->get_date_time().month << "-" << (int)fuck_msg->get_date_time().day << " "
-                      << (int)fuck_msg->get_date_time().hour << ":" << (int)fuck_msg->get_date_time().min << ":" << (int)fuck_msg->get_date_time().sec << std::endl;
+            if (counter % 1000 == 0)
+                std::cout << "#" << counter << " FUCK_MSG time_date: " << fuck_msg->get_date_time().year << "-" << (int)fuck_msg->get_date_time().month << "-" << (int)fuck_msg->get_date_time().day << " "
+                          << (int)fuck_msg->get_date_time().hour << ":" << (int)fuck_msg->get_date_time().min << ":" << (int)fuck_msg->get_date_time().sec << std::endl;
         } else if (msg->get_type() == MyMessages::SHIT) {
             auto shit_msg = std::dynamic_pointer_cast<ShitMessage>(msg);
-            std::cout << "#" << counter++ << " SHIT_MSG  student id: " << shit_msg->get_student().id << "  age: " << (int)shit_msg->get_student().age << std::endl;
+            std::cout << "#" << counter << " SHIT_MSG  student id: " << shit_msg->get_student().id << "  age: " << (int)shit_msg->get_student().age << std::endl;
         }
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        counter++;
     }
 }
 
 void new_connection(TCPClient *client)
 {
+    //    auto buffer = std::make_shared<hp::peripheral::FastBuffer>();
+    //    client->set_buffer(buffer.get());
     auto packet = std::make_shared<ClientPacket>();
     client->set_extractor(packet.get());
     Client_Thread = std::make_shared<std::thread>(thread_for_work_client, client);
@@ -217,15 +220,14 @@ void start_tcp_server()
     tcp_server->start();
     std::cout << "Start tcp server with port 8585" << std::endl;
     while(1) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
     }
 }
 
 void send_data_to_server() {
     TCPClient client(SERVER_IP, SERVER_PORT);
     bool con = false;
-    auto buffer = new hp::peripheral::FastBuffer();
-    client.set_buffer(buffer);
+
     while (!con) {
         con = client.connect();
         if (!con)
@@ -251,23 +253,30 @@ void send_data_to_server() {
                 (char)0x24,    (char)0x00 };
 
     all_data.push_back(fuck_message_ok);
-    all_data.push_back(shit_message_ok);
-    all_data.push_back(shit_message_crc);
-    all_data.push_back(shit_message_footer);
-    all_data.push_back(fuck_message_ok);
+    //    all_data.push_back(shit_message_ok);
+    //    all_data.push_back(shit_message_crc);
+    //    all_data.push_back(shit_message_footer);
+    //    all_data.push_back(fuck_message_ok);
 
-    while (1) {
-        if (!client.is_connected())
-            break;
-        for(auto data : all_data) {
-            int result = client.send(data.data(), data.length());
-            if (result != int(data.length()))
-                std::cout << "Cant send data to server" << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        }
+    //    while (1) {
+    //        if (!client.is_connected())
+    //            break;
+    //        for(auto data : all_data) {
+    for (int i = 0 ; i < 10000; i++) {
+        /* int result = */client.send(fuck_message_ok.data(), fuck_message_ok.length());
+        //        if (result != int(fuck_message_ok.length()))
+        //            std::cout << "Cant send data to server" << std::endl;
     }
+    //            std::this_thread::sleep_for(std::chrono::seconds(40));
+    //            return;
+    //            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    //        }
+    //    }
     std::cout << "finished" << std::endl;
-    delete buffer;
+    while(1) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    }
 }
 
 int main()

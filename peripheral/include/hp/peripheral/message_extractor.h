@@ -29,14 +29,19 @@ private:
     const DataSection* data_;
     const FooterSection* footer_;
 
-
-
     bool is_header_exist_;
     bool is_cmd_exist_;
     bool is_length_exist_;
     bool is_data_exist_;
     bool is_crc_exist_;
     bool is_footer_exist_;
+
+    uint32_t cmd_size_;
+    uint32_t header_size_;
+    uint32_t len_size_;
+    uint32_t data_size_;
+    uint32_t crc_size_;
+    uint32_t footer_size_;
 
 };
 

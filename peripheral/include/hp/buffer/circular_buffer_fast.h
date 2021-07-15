@@ -36,6 +36,10 @@ private:
 //    std::vector<char> buffer_;
 //    std::atomic<uint32_t> read_index_;
 //    std::atomic<uint32_t> write_index_;
+
+    // AbstractBuffer interface
+public:
+    std::string get_all_bytes();
 };
 
 } // namespace peripheral

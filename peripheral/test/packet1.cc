@@ -7,14 +7,14 @@
 
 
 //The wire format of a simple packet
-//                        0            2            6                 10
-//                        +------------+------------+------------------+------------------+--------------+------------+
-// Name:                  |   Header   |    CMD     |       Len        |       Data       |     CRC      |   Footer   |
-//                        +------------+------------+------------------+------------------+--------------+------------+
-// Bytes:                 |   2 Bytes  |  2 Bytes   |     4 Bytes      |    Len value     |    4 Bytes   |   2 Bytes  |
-//                        +------------+------------+------------------+------------------+--------------+------------+
-// Packet Detail:         | 0xaa 0xff  | SHIT, FUCK | First byte's msb |  Serialize Data  | Sum of Bytes |  0xaa 0xcc |
-//                        +------------+------------+------------------+------------------+--------------+------------+
+//                        0            2            6                  x
+//                        +------------+------------+------------------+
+// Name:                  |   Header   |    CMD     |       Data       |
+//                        +------------+------------+------------------+
+// Bytes:                 |   2 Bytes  |  2 Bytes   |    Len value     |
+//                        +------------+------------+------------------+
+// Packet Detail:         | 0xaa 0xff  | SHIT, FUCK |  Serialize Data  |
+//                        +------------+------------+------------------+
 
 
 #define SERVER_PORT (8585)
@@ -62,14 +62,14 @@ private:
     uint32_t msg_size_;
 
 public:
-    FuckMessage() { msg_size_ = sizeof (date_time_);}
+    FuckMessage() { msg_size_ = 9; }
     void serialize(char *buffer, size_t size) {
         memcpy(buffer, (void*) &date_time_, size);
     }
     void deserialize(const char *buffer, size_t size) {
         memcpy((void*) & date_time_, buffer, size);
     }
-    size_t get_serialize_size() const { return sizeof(DateTime); }
+    size_t get_serialize_size() const { return msg_size_; }
     int get_type() const { return MyMessages::FUCK; }
     DateTime get_date_time() const { return date_time_;}
 };
@@ -143,24 +143,11 @@ public:
         cmd->size_bytes = CMD_SIZE;
         cmd->msg_factory = std::make_shared<MessageFactory>();
 
-        LengthSection* length = new LengthSection();
-        length->include = PacketSections::Data;
-        length->is_first_byte_msb = true;
-        length->size_bytes = LENGTH_SIZE;
-
         DataSection* data = new DataSection();
-        CRCSection* crc = new CRCSection();
-        crc->crc_checker = std::make_shared<ChecksumChecker>();
-        crc->size_bytes = CRC_SIZE;
 
-        FooterSection* footer = new FooterSection();
-        footer->content = std::string{static_cast<char>FOOTER1, static_cast<char>FOOTER2};
         sections.push_back(header);
         sections.push_back(cmd);
-        sections.push_back(length);
         sections.push_back(data);
-        sections.push_back(crc);
-        sections.push_back(footer);
 
         return sections;
     };
@@ -173,6 +160,10 @@ public:
         }
         case PacketErrors::Wrong_Footer : {
             std::cout << "Wrong Footer" << std::endl;
+            return WhatFuckingDo::Find_Header;
+        }
+        case PacketErrors::Wrong_CMD : {
+            std::cout << "Wrong CMD" << std::endl;
             return WhatFuckingDo::Find_Header;
         }
         default: {
@@ -192,12 +183,13 @@ void thread_for_work_client(TCPClient *client) {
         auto msg = client->get_next_packet();
         if (msg->get_type() == MyMessages::FUCK) {
             auto fuck_msg = std::dynamic_pointer_cast<FuckMessage>(msg);
-            if (counter % 1000 == 0)
-                std::cout << "#" << counter << " FUCK_MSG time_date: " << fuck_msg->get_date_time().year << "-" << (int)fuck_msg->get_date_time().month << "-" << (int)fuck_msg->get_date_time().day << " "
-                          << (int)fuck_msg->get_date_time().hour << ":" << (int)fuck_msg->get_date_time().min << ":" << (int)fuck_msg->get_date_time().sec << std::endl;
+            std::cout << "#" << counter << "FUCK_MSG" << std::endl;
         } else if (msg->get_type() == MyMessages::SHIT) {
             auto shit_msg = std::dynamic_pointer_cast<ShitMessage>(msg);
-            std::cout << "#" << counter << " SHIT_MSG  student id: " << shit_msg->get_student().id << "  age: " << (int)shit_msg->get_student().age << std::endl;
+            std::cout << "#" << counter << " SHIT_MSG" << std::endl;
+        } else if (msg->get_type() == MyMessages::Wrong) {
+            auto wron_msg = std::dynamic_pointer_cast<WrongMessage>(msg);
+            std::cout << "#" << counter << " WRONG_MSG" << std::endl;
         }
         counter++;
     }
@@ -205,10 +197,9 @@ void thread_for_work_client(TCPClient *client) {
 
 void new_connection(TCPClient *client)
 {
-    //    auto buffer = std::make_shared<hp::peripheral::FastBuffer>();
-    //    client->set_buffer(buffer.get());
     auto packet = std::make_shared<ClientPacket>();
     client->set_extractor(packet.get());
+    client->set_buffer_size((uint64_t)2 * 1024);
     Client_Thread = std::make_shared<std::thread>(thread_for_work_client, client);
     std::cout << "id: " << client->get_client_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
 }
@@ -219,63 +210,47 @@ void start_tcp_server()
     tcp_server->notify_me_for_new_connection(std::bind(new_connection, std::placeholders::_1));
     tcp_server->start();
     std::cout << "Start tcp server with port 8585" << std::endl;
-    while(1) {
+    while(1)
         std::this_thread::sleep_for(std::chrono::seconds(10));
-    }
 }
 
 void send_data_to_server() {
-    TCPClient client(SERVER_IP, SERVER_PORT);
+    TCPClient *client = new TCPClient(SERVER_IP, SERVER_PORT);
     bool con = false;
 
     while (!con) {
-        con = client.connect();
+        con = client->connect();
         if (!con)
             std::cout << "Can't connect to tcp server" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     std::vector<std::string> all_data;
-    std::string fuck_message_ok      {(char)HEADER1, (char)HEADER2, (char)0xd1,    (char)0xd2, (char)0x00, (char)0x09,
-                (char)0x15,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09,
-                (char)0x38,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
+    std::string fuck_message_ok  {(char)HEADER1, (char)HEADER2, (char)0xd1,    (char)0xd2,
+                                  (char)0x15,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09 };
 
-    std::string shit_message_ok      {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
-                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
-                (char)0x24,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
+    std::string shit_message_ok  {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3,
+                                      (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20 };
 
-    std::string shit_message_crc     {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
-                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
-                (char)0x22,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
+    std::string shit_message_cmd  {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd5,
+                                   (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20 };
 
-    std::string shit_message_footer  {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
-                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
-                (char)0x24,    (char)0x00 };
-
+    all_data.push_back(shit_message_ok);
     all_data.push_back(fuck_message_ok);
-    //    all_data.push_back(shit_message_ok);
-    //    all_data.push_back(shit_message_crc);
-    //    all_data.push_back(shit_message_footer);
-    //    all_data.push_back(fuck_message_ok);
+    all_data.push_back(shit_message_cmd);
 
-    //    while (1) {
-    //        if (!client.is_connected())
-    //            break;
-    //        for(auto data : all_data) {
-    for (int i = 0 ; i < 10000; i++) {
-        /* int result = */client.send(fuck_message_ok.data(), fuck_message_ok.length());
-        //        if (result != int(fuck_message_ok.length()))
-        //            std::cout << "Cant send data to server" << std::endl;
-    }
-    //            std::this_thread::sleep_for(std::chrono::seconds(40));
-    //            return;
-    //            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    //        }
-    //    }
-    std::cout << "finished" << std::endl;
-    while(1) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-
+    int counter = 0;
+    while(counter < 5) {
+        for (auto cur_packet : all_data) {
+            uint ret = client->send(cur_packet.data(), cur_packet.length());
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            if (ret != cur_packet.size()) {
+                std::cout << "fuuck" << std::endl;
+                exit(1);
+            }
+        }
+        counter++;
+//        std::cout << "send: " << counter++ << std::endl;
     }
 }
 

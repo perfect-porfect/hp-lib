@@ -10,6 +10,9 @@ CircularBuffer::CircularBuffer(uint32_t size_bytes)
 {
     head_ = tail_ = 0;
     buf_ = new uint8_t[size_];
+    for (uint64_t index = 0; index < size_ ; index++) {
+        buf_[index] = 0xfa;
+    }
 //  buf_.resize(size_bytes);
 }
 
@@ -37,7 +40,7 @@ BufferError CircularBuffer::read(uint8_t *data, const uint32_t len, const uint32
     uint32_t len_data = len;
     std::unique_lock<std::mutex> lk(m);
     if (timeout > 0)
-        read_signal_.wait_for(lk, std::chrono::milliseconds(timeout), [&] {static int counter = 0; std::cout << "#" << counter++ << " fuck" << std::endl; return check_free_space(len_data); });
+        read_signal_.wait_for(lk, std::chrono::milliseconds(timeout), [&] { return check_free_space(len_data); });
     else
         read_signal_.wait(lk, [&] {return check_free_space(len_data);});
 
@@ -74,9 +77,8 @@ BufferError CircularBuffer::write(const uint8_t *data, const uint32_t len)
     if (overflow) {
         tail_ = (head_ + 1) % size_;
         ret_val = BufferError::BUF_OVERFLOW;
-        std::cout << "overflow happen" << std::endl;
+        std::cout << "Overflow happen" << std::endl;
     }
-
     read_signal_.notify_all();
 
     return ret_val;
@@ -87,6 +89,18 @@ uint8_t CircularBuffer::read_next_byte()
     uint8_t data;
     uint8_t *data_ptr = &data;
     read(data_ptr, 1);
+    return data;
+}
+
+std::string CircularBuffer::get_all_bytes()
+{
+    int len = count();
+    std::string data;
+    data.resize(len);
+    BufferError ret = read((uint8_t*)data.data(), len);
+    if (ret != BufferError::BUF_NOERROR) {
+        std::cout <<"buuuuuuuuuufer error" << std::endl;
+    }
     return data;
 }
 

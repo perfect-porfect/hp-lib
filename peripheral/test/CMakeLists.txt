@@ -9,11 +9,25 @@ find_package(Boost REQUIRED COMPONENTS system thread chrono regex filesystem)
 
 #include_directories(${GTEST_INCLUDE_DIRS})
 
-add_executable(extractor1 extractor1.cc )
-target_link_libraries(extractor1 PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
+add_executable(full_packet full_packet.cc )
+target_link_libraries(full_packet PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
+
+
+add_executable(packet1 packet1.cc)
+target_link_libraries(packet1 PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
+
+add_executable(packet2 packet2.cc)
+target_link_libraries(packet2 PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(client client.cc)
 target_link_libraries(client PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(buffer buffer.cc)
 target_link_libraries(buffer PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
+
+add_executable(buffer1 buffer1.cc)
+target_link_libraries(buffer1 PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
+
+
+add_executable(send_receive send_receive.cc)
+target_link_libraries(send_receive PUBLIC peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})

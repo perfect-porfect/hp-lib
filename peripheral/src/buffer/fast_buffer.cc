@@ -42,9 +42,9 @@ BufferError FastBuffer::write(const uint8_t *data, const uint32_t len)
 uint8_t FastBuffer::read_next_byte()
 {
     while (buffer_read_index_ == buffer_write_index_) {
-        if (!finish_waiting_)
-           return '\0';
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+//        if (!finish_waiting_)
+//           return '\0';
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
     }
 
     char data = input_buffer_[buffer_read_index_];
@@ -57,6 +57,11 @@ uint8_t FastBuffer::read_next_byte()
 FastBuffer::~FastBuffer()
 {
     delete input_buffer_;
+}
+
+std::string FastBuffer::get_all_bytes()
+{
+
 }
 
 } // namespace peripheral

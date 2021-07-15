@@ -29,6 +29,10 @@ private:
     uint32_t volatile buffer_read_index_;
     bool finish_waiting_;
     uint32_t buffer_size_;
+
+    // AbstractBuffer interface
+public:
+    std::string get_all_bytes();
 };
 
 } // namespace peripheral

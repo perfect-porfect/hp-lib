@@ -14,37 +14,50 @@ MessageExtractor::MessageExtractor(AbstractPacketSections *extractor, AbstractBu
     is_crc_exist_    = false;
     is_footer_exist_ = false;
 
+    header_size_ = 0;
+    footer_size_ = 0;
+    data_size_   = 0;
+    cmd_size_    = 0;
+    len_size_    = 0;
+    crc_size_    = 0;
+
     packet_sections_ = extractor_->get_packet_sections();
     for (auto section : packet_sections_) {
         auto type = section->get_type();
         switch(type) {
         case PacketSections::Header : {
             header_ = dynamic_cast<HeaderSection*>(section);
+            header_size_ = header_->content.size();
             is_header_exist_ = true;
             break;
         }
         case PacketSections::CMD : {
             cmd_ = dynamic_cast<CMDSection*>(section);
+            cmd_size_ = cmd_->size_bytes;
             is_cmd_exist_ = true;
             break;
         }
         case PacketSections::Length : {
             length_ = dynamic_cast<LengthSection*>(section);
+            len_size_ = length_->size_bytes;
             is_length_exist_ = true;
             break;
         }
         case PacketSections::Data : {
             data_ = dynamic_cast<DataSection*>(section);
+            data_size_ = data_->fix_size_bytes;
             is_data_exist_ = true;
             break;
         }
         case PacketSections::CRC : {
             crc_ = dynamic_cast<CRCSection*>(section);
+            crc_size_ = crc_->size_bytes;
             is_crc_exist_ = true;
             break;
         }
         case PacketSections::Footer : {
             footer_ = dynamic_cast<FooterSection*>(section);
+            footer_size_ = footer_->content.size();
             is_footer_exist_ = true;
             break;
         }
@@ -57,20 +70,21 @@ MessageExtractor::MessageExtractor(AbstractPacketSections *extractor, AbstractBu
     }
 }
 
-
-
 std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
 {
     std::shared_ptr<AbstractSerializableMessage> msg = nullptr;
     std::vector<uint8_t> data;
     bool is_find_message = false;
-    while(!is_find_message) {
+    while (!is_find_message) {
         std::string packet;
         bool is_crc_ok = true;
         bool is_footer_ok = true;
-        int data_len;
+        int data_len = 0;
         uint32_t data_size = 0;
+        bool is_cmd_null = false;
         for (auto section : packet_sections_) {
+            if (is_cmd_null)
+                break;
             auto type = section->get_type();
             switch(type) {
             case PacketSections::Header : {
@@ -83,14 +97,30 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
                 std::string cmd = get_next_bytes(cmd_->size_bytes);
                 msg = cmd_->msg_factory->build_message(cmd.data());
                 fill_packet(packet, cmd);
-                if (msg == nullptr)
+                if (msg == nullptr) {
                     extractor_->get_error_packet(PacketErrors::Wrong_CMD, packet.data(), packet.size());
+                    is_cmd_null = true;
+                    continue;
+                }
                 is_cmd_exist_ = true;
                 break;
             }
             case PacketSections::Length : {
                 std::string len_size = get_next_bytes(length_->size_bytes);
-                data_len = calc_len(len_size.data(), length_->size_bytes, length_->is_first_byte_msb);
+                uint32_t len = calc_len(len_size.data(), length_->size_bytes, length_->is_first_byte_msb);
+                if (length_->include != PacketSections::Data) {
+                    if (length_->include & PacketSections::CMD)
+                        len -= cmd_size_;
+                    if (length_->include & PacketSections::Length)
+                        len -= len_size_;
+                    if (length_->include & PacketSections::Footer)
+                        len -= footer_size_;
+                    if (length_->include & PacketSections::Header)
+                        len -= header_size_;
+                    if (length_->include & PacketSections::CRC)
+                        len -= crc_size_;
+                }
+                data_len = len;
                 is_length_exist_ = true;
                 fill_packet(packet, len_size);
                 break;
@@ -214,6 +244,7 @@ std::string MessageExtractor::get_next_bytes(uint32_t size)
         data[i] = buffer_->read_next_byte();
     return data;
 }
+
 template<class Containter>
 void MessageExtractor::fill_packet(std::string& source, const Containter& data)
 {

@@ -83,7 +83,7 @@ bool TCPClient::connect()
     return is_connected_;
 }
 
-void TCPClient::set_buffer_size(uint32_t size_bytes)
+void TCPClient::set_buffer_size(uint64_t size_bytes)
 {
     //    buffer_->set_size(size_bytes);
     buffer_size_ = size_bytes;
@@ -99,7 +99,7 @@ size_t TCPClient::send(const char *data, const uint32_t size)
     return -1;
 }
 
-void TCPClient::async_send(const char *data, const uint32_t size, std::function<void (int)> func)
+void TCPClient::async_send(const char *data, const uint32_t size, std::function<void (size_t)> func)
 {
     if (is_connected_)
         socket_->async_send(boost::asio::buffer(data, size), boost::bind(func, boost::asio::placeholders::bytes_transferred));
@@ -113,6 +113,7 @@ void TCPClient::handle_read_data(const boost::system::error_code error, const si
         } else {
             buffer_->write(data_.data(), bytes_transferred);
         }
+        receive_size_ += bytes_transferred;
         socket_->async_receive(boost::asio::buffer(data_.data(), data_.size()),
                                boost::bind(&TCPClient::handle_read_data, this, boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
     } else {
@@ -142,7 +143,7 @@ uint8_t TCPClient::get_next_byte()
 
 std::string TCPClient::get_all_bytes()
 {
-
+    return buffer_->get_all_bytes();
 }
 
 void TCPClient::check_line_state()
@@ -184,10 +185,66 @@ void TCPClient::disconnect()
     socket_->close();
     is_connected_ = false;
 }
-void TCPClient::start_print_send_receive_rate()
+void TCPClient::print_send_receive_rate()
 {
-    std::cout << "Data sending " + std::to_string(send_size_    / (1024*1024) ) + " MB/s  " + std::to_string(send_size_) + " Bytes" << std::endl;
-    std::cout << "Data receive " + std::to_string(receive_size_ / (1024*1024) ) + " MB/s  " + std::to_string(receive_size_) + " Bytes" << std::endl;
+    static int sec = 0;
+    if (send_size_ < 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " send " + std::to_string(send_size_) + " Bytes" << std::endl;
+    } else if (send_size_ < 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " send " + std::to_string((double)send_size_    / (1024) ) + " KB/s  " << std::endl;
+    } else if (send_size_ < 1024 * 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " send " + std::to_string((double)send_size_    / (1024 * 1024) ) + " MB/s  " << std::endl;
+    } else if (send_size_ >= 1024 * 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " send " + std::to_string((double)send_size_    / (1024*1024 * 1024) ) + " GB/s  " + std::to_string(send_size_) + " Bytes" << std::endl;
+    }
+
+    if (receive_size_ < 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " receive " + std::to_string(receive_size_) + " Bytes" << std::endl;
+    } else if (receive_size_ < 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " receive " + std::to_string((double)receive_size_ / (1024) ) + " KB/s  " << std::endl;
+    } else if (receive_size_ < 1024 * 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " receive " + std::to_string((double)receive_size_ / (1024 * 1024) ) + " MB/s  " << std::endl;
+    } else if (receive_size_ >= 1024 * 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " receive " + std::to_string((double)receive_size_ / (1024*1024 * 1024) ) + " GB/s  " + std::to_string(receive_size_) + " Bytes" << std::endl;
+    }
+
+    sec++;
+    send_size_ = 0;
+    receive_size_ = 0;
+}
+
+void TCPClient::print_send_rate()
+{
+    static int sec = 0;
+    if (send_size_ < 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " send " + std::to_string(send_size_) + " Bytes" << std::endl;
+    } else if (send_size_ < 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " send " + std::to_string((double)send_size_    / (1024) ) + " KB/s  " << std::endl;
+    } else if (send_size_ < 1024 * 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " send " + std::to_string((double)send_size_    / (1024 * 1024) ) + " MB/s  " << std::endl;
+    } else if (send_size_ >= 1024 * 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " send " + std::to_string((double)send_size_    / (1024*1024 * 1024) ) + " GB/s  " + std::to_string(send_size_) + " Bytes" << std::endl;
+    }
+    sec++;
+
+    send_size_ = 0;
+}
+
+void TCPClient::print_receive_rate()
+{
+    static int sec = 0;
+
+    if (receive_size_ < 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " receive " + std::to_string(receive_size_) + " Bytes" << std::endl;
+    } else if (receive_size_ < 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " receive " + std::to_string((double)receive_size_ / (1024) ) + " KB/s  " << std::endl;
+    } else if (receive_size_ < 1024 * 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " receive " + std::to_string((double)receive_size_ / (1024 * 1024) ) + " MB/s  " << std::endl;
+    } else if (receive_size_ >= 1024 * 1024 * 1024) {
+        std::cout << "sec: " << sec << " ID: " << id_ << " receive " + std::to_string((double)receive_size_ / (1024*1024 * 1024) ) + " GB/s  " + std::to_string(receive_size_) + " Bytes" << std::endl;
+    }
+
+    sec++;
     send_size_ = 0;
     receive_size_ = 0;
 }

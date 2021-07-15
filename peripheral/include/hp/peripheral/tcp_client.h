@@ -11,7 +11,7 @@
 #include "message_extractor.h"
 #include "buffer_template.h"
 
-#define MAX_LENGTH (256 * 4)
+#define MAX_LENGTH (40 * 1024 * 1024)
 
 typedef std::shared_ptr<boost::asio::ip::tcp::socket> TCPSocketShared;
 
@@ -31,7 +31,7 @@ public:
     bool connect();
     void disconnect();
     size_t send(const char* data, const uint32_t size);
-    void async_send(const char* data, const uint32_t size, std::function<void (int)> func);
+    void async_send(const char* data, const uint32_t size, std::function<void (size_t)> func);
 
     std::string get_ip() const;
     short get_port() const;
@@ -43,7 +43,7 @@ public:
 
     void set_buffer(AbstractBuffer *buffer);
     void set_extractor(AbstractPacketSections *extractor);
-    void set_buffer_size(uint32_t size_bytes);
+    void set_buffer_size(uint64_t size_bytes);
     std::shared_ptr<AbstractSerializableMessage> get_next_packet();
     BufferError get_next_bytes(uint8_t *data, const uint32_t len, const uint32_t timeout_ms = 0);
     uint8_t get_next_byte();
@@ -51,7 +51,10 @@ public:
     uint32_t get_remain_bytes() const;
     void check_line_state();
 
-    void start_print_send_receive_rate();
+    void print_send_receive_rate();
+    void print_send_rate();
+    void print_receive_rate();
+
     ~TCPClient();
 private:
     void initialize();
@@ -61,8 +64,7 @@ private:
 
     std::string ip_;
     short port_;
-    uint32_t buffer_size_;
-    long int receive_size_;
+    uint64_t buffer_size_;
     bool is_connected_;
     int id_;
     std::shared_ptr<boost::asio::ip::tcp::socket> socket_;
@@ -70,9 +72,10 @@ private:
 
     std::array<uint8_t, MAX_LENGTH> data_;
     boost::signals2::signal <void (const char* data, size_t size, uint32_t id)> data_received_connections_;
-    boost::signals2::signal <void (int)> disconnect_connections_;
+    boost::signals2::signal <void (size_t)> disconnect_connections_;
 
-    long int send_size_;
+    std::atomic<uint64_t> receive_size_;
+    std::atomic<uint64_t> send_size_;
 
     Buffer<std::shared_ptr<AbstractSerializableMessage>> messages_buffer_;
     boost::thread_group thread_group_;

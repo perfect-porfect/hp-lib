@@ -66,13 +66,13 @@ public:
 
 
 enum PacketSections {
-    Header  = 0b00000001,
-    Length  = 0b00000010,
-    CMD     = 0b00000100,
-    Footer  = 0b00001000,
-    CRC     = 0b00010000,
-    Data    = 0b00100000,
-    Other   = 0b01000000
+    Header  = 1 << 0,
+    Length  = 1 << 1,
+    CMD     = 1 << 2,
+    Footer  = 1 << 3,
+    CRC     = 1 << 4,
+    Data    = 1 << 5,
+    Other   = 1 << 6
 };
 
 template<class T> inline T operator~ (T a) { return (T)~(int)a; }
@@ -90,14 +90,15 @@ public:
 };
 
 struct CRCSection : public Section {
-    uint32_t size_bytes;
+    uint32_t size_bytes = 0;
+    PacketSections include;
     std::shared_ptr<AbstractCRC> crc_checker;
 public:
     virtual PacketSections get_type()  const override { return PacketSections::CRC;}
 };
 
 struct LengthSection : public Section {
-    uint32_t size_bytes;
+    uint32_t size_bytes = 0;
     PacketSections include;
     bool is_first_byte_msb;
 public:
@@ -117,14 +118,14 @@ public:
 };
 
 struct CMDSection : public Section {
-    uint32_t size_bytes;
+    uint32_t size_bytes = 0;
     std::shared_ptr<AbstractMessageFactory> msg_factory;
 public:
     PacketSections get_type() const { return PacketSections::CMD;}
 };
 
 struct DataSection : public Section {
-    uint32_t fix_size_bytes;
+    uint32_t fix_size_bytes = 0;
 public:
     PacketSections get_type() const { return PacketSections::Data;}
 };
@@ -132,7 +133,8 @@ public:
 enum class PacketErrors{
     Wrong_CRC,
     Wrong_Footer,
-    Wrong_CMD
+    Wrong_CMD,
+    Wrong_Length_Include
 };
 
 enum class WhatFuckingDo{

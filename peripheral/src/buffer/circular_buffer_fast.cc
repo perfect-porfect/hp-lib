@@ -108,7 +108,12 @@ inline bool CircularBufferFast::check_free_space(const uint32_t len)
 //    if (!destructor_call_)
 //        return (count() >= len);
 //    else
-//        return true;
+    //        return true;
+}
+
+std::string CircularBufferFast::get_all_bytes()
+{
+
 }
 
 } // namespace peripheral

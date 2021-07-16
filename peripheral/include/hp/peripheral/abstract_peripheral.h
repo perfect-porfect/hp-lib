@@ -8,6 +8,17 @@
 namespace hp {
 namespace peripheral {
 
+enum PacketSections {
+    Header  = 1 << 0,
+    Length  = 1 << 1,
+    CMD     = 1 << 2,
+    Footer  = 1 << 3,
+    CRC     = 1 << 4,
+    Data    = 1 << 5,
+    Other   = 1 << 6
+};
+
+
 class AbstractCRC {
 public:
     //!
@@ -19,7 +30,7 @@ public:
     //! \return true mean the crc match with data.
     //!
     //!
-    virtual bool is_valid(const char* data, size_t data_size, const char* crc_data, size_t crc_size) const = 0;
+    virtual bool is_valid(const std::map<PacketSections, std::string> input_data, const char* crc_data, size_t crc_size) const = 0;
 };
 
 //!
@@ -65,15 +76,6 @@ public:
 };
 
 
-enum PacketSections {
-    Header  = 1 << 0,
-    Length  = 1 << 1,
-    CMD     = 1 << 2,
-    Footer  = 1 << 3,
-    CRC     = 1 << 4,
-    Data    = 1 << 5,
-    Other   = 1 << 6
-};
 
 template<class T> inline T operator~ (T a) { return (T)~(int)a; }
 template<class T> inline T operator| (T a, T b) { return (T)((int)a | (int)b); }

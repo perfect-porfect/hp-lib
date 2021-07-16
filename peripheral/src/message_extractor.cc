@@ -14,6 +14,14 @@ MessageExtractor::MessageExtractor(AbstractPacketSections *extractor, AbstractBu
     is_crc_exist_    = false;
     is_footer_exist_ = false;
 
+    crc_include_header_ = false;
+    crc_include_footer_ = false;
+    crc_include_length_ = false;
+    crc_include_data_ = false;
+    crc_include_cmd_ = false;
+    crc_include_crc_ = false;
+
+
     header_size_ = 0;
     footer_size_ = 0;
     data_size_   = 0;
@@ -53,6 +61,18 @@ MessageExtractor::MessageExtractor(AbstractPacketSections *extractor, AbstractBu
             crc_ = dynamic_cast<CRCSection*>(section);
             crc_size_ = crc_->size_bytes;
             is_crc_exist_ = true;
+            if (crc_->include & PacketSections::Data)
+                crc_include_data_ = true;
+            if (crc_->include & PacketSections::CMD)
+                crc_include_cmd_ = true;
+            if (crc_->include & PacketSections::Length)
+                crc_include_length_ = true;
+            if (crc_->include & PacketSections::Footer)
+                crc_include_footer_ = true;
+            if (crc_->include & PacketSections::Header)
+                crc_include_header_ = true;
+            if (crc_->include & PacketSections::CRC)
+                crc_include_crc_ = true;
             break;
         }
         case PacketSections::Footer : {
@@ -68,15 +88,30 @@ MessageExtractor::MessageExtractor(AbstractPacketSections *extractor, AbstractBu
         }
 
     }
+
+    // check failed packet
+    {
+        // if crc include's cmd but packet didn't
+        // if len include somthing but packet didn't
+        // warning for crc not include data
+        // warning if length not include data
+
+
+    }
 }
 
 std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
 {
     std::shared_ptr<AbstractSerializableMessage> msg = nullptr;
-    std::vector<uint8_t> data;
     bool is_find_message = false;
     while (!is_find_message) {
+        std::map<PacketSections, std::string> crc_check_data;
+        std::string data;
+        std::string cmd;
+        std::string len;
         std::string packet;
+        std::string crc;
+        std::string footer;
         bool is_crc_ok = true;
         bool is_footer_ok = true;
         int data_len = 0;
@@ -89,12 +124,13 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
             switch(type) {
             case PacketSections::Header : {
                 find_header();
+                //TODO(HP): These function used when we face a problem in packet, so move these to end of sections
                 fill_packet(packet, header_->content);
                 std::copy(header_->content.begin(), header_->content.end(), packet.begin());
                 break;
             }
             case PacketSections::CMD : {
-                std::string cmd = get_next_bytes(cmd_->size_bytes);
+                cmd = get_next_bytes(cmd_->size_bytes);
                 msg = cmd_->msg_factory->build_message(cmd.data());
                 fill_packet(packet, cmd);
                 if (msg == nullptr) {
@@ -106,23 +142,23 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
                 break;
             }
             case PacketSections::Length : {
-                std::string len_size = get_next_bytes(length_->size_bytes);
-                uint32_t len = calc_len(len_size.data(), length_->size_bytes, length_->is_first_byte_msb);
+                len = get_next_bytes(length_->size_bytes);
+                uint32_t len_val = calc_len(len.data(), length_->size_bytes, length_->is_first_byte_msb);
                 if (length_->include != PacketSections::Data) {
                     if (length_->include & PacketSections::CMD)
-                        len -= cmd_size_;
+                        len_val -= cmd_size_;
                     if (length_->include & PacketSections::Length)
-                        len -= len_size_;
+                        len_val -= len_size_;
                     if (length_->include & PacketSections::Footer)
-                        len -= footer_size_;
+                        len_val -= footer_size_;
                     if (length_->include & PacketSections::Header)
-                        len -= header_size_;
+                        len_val -= header_size_;
                     if (length_->include & PacketSections::CRC)
-                        len -= crc_size_;
+                        len_val -= crc_size_;
                 }
-                data_len = len;
+                data_len = len_val;
                 is_length_exist_ = true;
-                fill_packet(packet, len_size);
+                fill_packet(packet, len);
                 break;
             }
             case PacketSections::Data : {
@@ -137,7 +173,7 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
 
                     data.resize(data_size);
                 }
-                auto buf_ret = buffer_->read(data.data(), data_size);
+                auto buf_ret = buffer_->read((uint8_t*)data.data(), data_size);
                 fill_packet(packet, data);
                 if (buf_ret != BufferError::BUF_NOERROR) {
                     std::cout << "Fucking buffer" << std::endl;
@@ -145,13 +181,24 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
                 break;
             }
             case PacketSections::CRC : {
-                std::string crc_data = get_next_bytes(crc_->size_bytes);
-                is_crc_ok = crc_->crc_checker->is_valid((char*)data.data(), data_size, crc_data.data(), crc_data.size());
-                fill_packet(packet, crc_data);
+                crc = get_next_bytes(crc_->size_bytes);
+                if (crc_->include != PacketSections::Data) {
+                    if (crc_->include & PacketSections::CMD)
+                        crc_ -= cmd_size_;
+                    if (length_->include & PacketSections::Length)
+                        crc_ -= len_size_;
+                    if (length_->include & PacketSections::Footer)
+                        crc_ -= footer_size_;
+                    if (length_->include & PacketSections::Header)
+                        crc_ -= header_size_;
+                    if (length_->include & PacketSections::CRC)
+                        crc_ -= crc_size_;
+                }
+                fill_packet(packet, crc);
                 break;
             }
             case PacketSections::Footer : {
-                std::string footer = get_next_bytes(footer_->content.size());
+                footer = get_next_bytes(footer_->content.size());
                 if (footer.compare(footer_->content) != 0)
                     is_footer_ok = false;
                 fill_packet(packet, footer);
@@ -163,6 +210,22 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
             }
             }
         }
+        if (is_crc_exist_) {
+            std::string crc;
+            if (crc_include_data_)
+                crc_check_data[PacketSections::Data] = data;
+            if (crc_include_cmd_)
+                crc_check_data[PacketSections::CMD] = cmd;
+            if (crc_include_footer_)
+                crc_check_data[PacketSections::Footer] = footer;
+            if (crc_include_header_)
+                crc_check_data[PacketSections::Header] = data;
+            if (crc_include_crc_)
+                crc_check_data[PacketSections::CRC] = crc;
+            if (crc_include_length_)
+                crc_check_data[PacketSections::Length] = len;
+            is_crc_ok = crc_->crc_checker->is_valid(crc_check_data, crc.data(), crc.size());
+        }
         if (!is_crc_ok) {
             extractor_->get_error_packet(PacketErrors::Wrong_CRC, packet.data(), packet.size());
             continue;
@@ -170,6 +233,7 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
             extractor_->get_error_packet(PacketErrors::Wrong_Footer, packet.data(), packet.size());
             continue;
         }
+
         if (is_crc_ok && is_footer_ok && msg != nullptr) {
             msg->deserialize((char*)data.data(), data_size);
             is_find_message = true;

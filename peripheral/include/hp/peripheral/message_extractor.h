@@ -36,6 +36,13 @@ private:
     bool is_crc_exist_;
     bool is_footer_exist_;
 
+    bool crc_include_header_;
+    bool crc_include_footer_;
+    bool crc_include_length_;
+    bool crc_include_data_;
+    bool crc_include_cmd_;
+    bool crc_include_crc_;
+
     uint32_t cmd_size_;
     uint32_t header_size_;
     uint32_t len_size_;

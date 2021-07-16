@@ -108,16 +108,16 @@ public:
 class ChecksumChecker : public AbstractCRC
 {
 public:
-    bool is_valid(const char *data, size_t data_size, const char *crc_data, size_t crc_size) const {
-        (void)crc_size;
-        short crc_val = 0;
-        for (uint32_t i = 0 ; i < data_size; i++)
-            crc_val += data[i];
-        short crc_data_val = *((short *)(crc_data));
-        if (crc_data_val != crc_val)
-            return false;
-        else
-            return true;
+    bool is_valid(std::map<PacketSections, std::string> input, const char *crc_data, size_t crc_size) const {
+//        (void)crc_size;
+//        short crc_val = 0;
+//        for (uint32_t i = 0 ; i < data_size; i++)
+//            crc_val += data[i];
+//        short crc_data_val = *((short *)(crc_data));
+//        if (crc_data_val != crc_val)
+//            return false;
+//        else
+//            return true;
     }
 };
 

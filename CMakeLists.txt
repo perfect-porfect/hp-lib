@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.0)
 
 project(hp-lib VERSION 0.1 LANGUAGES CXX)
 
-#add_subdirectory(common)
+add_subdirectory(common)
 add_subdirectory(peripheral)
 #add_subdirectory(communication)
 #add_subdirectory(dataaccess)

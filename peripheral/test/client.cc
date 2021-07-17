@@ -1,6 +1,6 @@
 #include <iostream>
 #include "tcp_client.h"
-#include "circular_buffer.h"
+#include "hp/common/buffer/circular_buffer.h"
 
 using namespace hp::peripheral;
 

@@ -1,9 +1,9 @@
 #include <iostream>
 #include "tcp_server.h"
-#include "circular_buffer.h"
-#include "buffer_template.h"
-#include "abstract_peripheral.h"
-#include "fast_buffer.h"
+#include "hp/common/buffer/circular_buffer.h"
+#include "hp/common/buffer/buffer_template.h"
+#include "abstract_ip.h"
+#include "hp/common/buffer/fast_buffer.h"
 
 
 //The wire format of a simple packet
@@ -108,7 +108,7 @@ public:
 class ChecksumChecker : public AbstractCRC
 {
 public:
-    bool is_valid(std::map<PacketSections, std::string> input, const char *crc_data, size_t crc_size) const {
+    bool is_valid(const std::map<PacketSections, std::string>& input_data, const std::string& data) {
 //        (void)crc_size;
 //        short crc_val = 0;
 //        for (uint32_t i = 0 ; i < data_size; i++)
@@ -132,7 +132,7 @@ public:
 class ClientPacket : public AbstractPacketSections {
 public:
     ClientPacket(){}
-    std::vector<Section*> get_packet_sections() const {
+    std::vector<Section*> get_packet_sections() {
         std::vector<Section*> sections;
 
         HeaderSection* header = new HeaderSection();
@@ -167,19 +167,19 @@ public:
         return sections;
     };
 
-    WhatFuckingDo get_error_packet(PacketErrors error, const char *data, size_t size){
+    void get_error_packet(PacketErrors error, const std::map<PacketSections, std::string>& packet){
         switch (error) {
         case PacketErrors::Wrong_CRC : {
             std::cout << "Wrong CRC" << std::endl;
-            return WhatFuckingDo::Find_Header;
+            break;
         }
         case PacketErrors::Wrong_Footer : {
             std::cout << "Wrong Footer" << std::endl;
-            return WhatFuckingDo::Find_Header;
+            break;
         }
         default: {
             std::cout << "There is a new error" << std::endl;
-            return WhatFuckingDo::Find_Header;
+            break;
         }
         }
     }

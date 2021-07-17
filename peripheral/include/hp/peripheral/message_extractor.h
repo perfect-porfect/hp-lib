@@ -1,7 +1,8 @@
 #ifndef TCPMESSAGEEXTRACTOR_H
 #define TCPMESSAGEEXTRACTOR_H
 
-#include "abstract_peripheral.h"
+#include "abstract_ip.h"
+#include "hp/common/buffer/abstract_buffer.h"
 
 namespace hp {
 namespace peripheral {

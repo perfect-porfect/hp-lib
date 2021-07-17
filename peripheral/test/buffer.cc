@@ -1,8 +1,8 @@
 #include <iostream>
 #include <boost/thread.hpp>
 
-#include "fast_buffer.h"
-#include "circular_buffer.h"
+#include "hp/common/buffer/fast_buffer.h"
+#include "hp/common/buffer/circular_buffer.h"
 
 const int Counter = 100000000;
 void read_(hp::peripheral::AbstractBuffer* buffer) {

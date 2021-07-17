@@ -3,7 +3,7 @@
 #include <memory>
 #include <boost/signals2.hpp>
 
-#include "abstract_buffer.h"
+//#include "abstract_buffer.h"
 
 namespace hp {
 namespace peripheral {
@@ -30,7 +30,7 @@ public:
     //! \return true mean the crc match with data.
     //!
     //!
-    virtual bool is_valid(const std::map<PacketSections, std::string> input_data, const char* crc_data, size_t crc_size) const = 0;
+    virtual bool is_valid(const std::map<PacketSections, std::string>& input_data, const std::string& data) = 0;
 };
 
 //!
@@ -88,12 +88,12 @@ template<class T> inline T& operator^= (T& a, T b) { return (T&)((int&)a ^= (int
 
 struct Section{
 public:
-    virtual PacketSections get_type() const { return PacketSections::Other;};
+    virtual PacketSections get_type() const = 0;
 };
 
 struct CRCSection : public Section {
     uint32_t size_bytes = 0;
-    PacketSections include;
+    PacketSections include = PacketSections::Data;
     std::shared_ptr<AbstractCRC> crc_checker;
 public:
     virtual PacketSections get_type()  const override { return PacketSections::CRC;}
@@ -101,7 +101,7 @@ public:
 
 struct LengthSection : public Section {
     uint32_t size_bytes = 0;
-    PacketSections include;
+    PacketSections include = PacketSections::Data;
     bool is_first_byte_msb;
 public:
     PacketSections get_type() const { return PacketSections::Length;}
@@ -132,7 +132,15 @@ public:
     PacketSections get_type() const { return PacketSections::Data;}
 };
 
+struct Other : public Section {
+    uint32_t size_bytes = 0;
+    virtual bool is_right() { return false;}
+public:
+    PacketSections get_type() const { return PacketSections::Data;}
+};
+
 enum class PacketErrors{
+    //TODO(HP): better way is throw exception and in what explain error (developer dont need to implement these codes)
     Wrong_CRC,
     Wrong_Footer,
     Wrong_CMD,
@@ -146,8 +154,8 @@ enum class WhatFuckingDo{
 
 class AbstractPacketSections {
 public:
-    virtual std::vector<Section*> get_packet_sections() const = 0;
-    virtual WhatFuckingDo get_error_packet(PacketErrors error, const char* data, size_t size) = 0;
+    virtual std::vector<Section*> get_packet_sections() = 0;
+    virtual void get_error_packet(PacketErrors error, const std::map<PacketSections, std::string>& packet) = 0;
 };
 
 } // namespace peripheral

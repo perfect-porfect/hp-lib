@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(include/hp/peripheral)
-include_directories(include/hp/buffer)
+include_directories(include/hp/peripheral/ip)
 
 find_package(Threads)
 find_package(Boost REQUIRED COMPONENTS system thread chrono regex filesystem)
@@ -23,7 +23,7 @@ target_include_directories(${MODULE_NAME}
             $<INSTALL_INTERFACE:include>
         PRIVATE
     )
-target_link_libraries(${MODULE_NAME} PUBLIC ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${MODULE_NAME} PUBLIC common ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 export(TARGETS ${MODULE_NAME} FILE "${MODULE_NAME}.cmake")
 
 option(BUILD_PERIPHERAL_TEST "Run all peripheral test module" ON)

@@ -1,8 +1,8 @@
 #include "tcp_client.h"
 #include <iostream>
 #include <boost/asio/detail/posix_thread.hpp>
-#include "fast_buffer.h"
-#include "circular_buffer.h"
+#include "hp/common/buffer/fast_buffer.h"
+#include "hp/common/buffer/circular_buffer.h"
 
 namespace hp {
 namespace peripheral {

@@ -1,8 +1,8 @@
 #include <iostream>
 #include <boost/thread.hpp>
 
-#include "fast_buffer.h"
-#include "circular_buffer.h"
+#include "hp/common/buffer/fast_buffer.h"
+#include "hp/common/buffer/circular_buffer.h"
 #include <thread>
 
 using namespace hp::peripheral;

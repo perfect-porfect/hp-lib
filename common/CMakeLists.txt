@@ -17,6 +17,9 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(Threads)
 find_package(Boost REQUIRED COMPONENTS system thread regex filesystem)
 
+include_directories(include/hp/common)
+include_directories(include/hp/common/buffer)
+
 add_library(${MODULE_NAME} STATIC ${SOURCES})
 target_link_libraries(${MODULE_NAME} PUBLIC ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 

@@ -1,9 +1,9 @@
 #include <iostream>
 #include "tcp_server.h"
-#include "circular_buffer.h"
-#include "buffer_template.h"
-#include "abstract_peripheral.h"
-#include "fast_buffer.h"
+#include "hp/common/buffer/circular_buffer.h"
+#include "hp/common/buffer/buffer_template.h"
+#include "hp/common/buffer/fast_buffer.h"
+#include "abstract_ip.h"
 
 
 //The wire format of a simple packet

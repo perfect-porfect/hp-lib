@@ -1,9 +1,9 @@
 #include <iostream>
 #include "tcp_server.h"
-#include "circular_buffer.h"
-#include "buffer_template.h"
-#include "abstract_peripheral.h"
-#include "fast_buffer.h"
+#include "hp/common/buffer/circular_buffer.h"
+#include "hp/common/buffer/buffer_template.h"
+#include "abstract_ip.h"
+#include "hp/common/buffer/fast_buffer.h"
 
 
 //The wire format of a simple packet
@@ -108,16 +108,16 @@ public:
 class ChecksumChecker : public AbstractCRC
 {
 public:
-    bool is_valid(std::map<PacketSections, std::string> input, const char *crc_data, size_t crc_size) const {
-//        (void)crc_size;
-//        short crc_val = 0;
-//        for (uint32_t i = 0 ; i < data_size; i++)
-//            crc_val += data[i];
-//        short crc_data_val = *((short *)(crc_data));
-//        if (crc_data_val != crc_val)
-//            return false;
-//        else
-//            return true;
+    bool is_valid(const std::map<PacketSections, std::string>& input, const std::string& data) {
+        short crc_val = 0;
+        auto packet_data = input.at(PacketSections::Data);
+        for (uint32_t i = 0 ; i < packet_data.size(); i++)
+            crc_val += packet_data[i];
+        short crc_data_val = *((short *)(&data[0]));
+        if (crc_data_val != crc_val)
+            return false;
+        else
+            return true;
     }
 };
 
@@ -130,12 +130,15 @@ public:
 #define FOOTER2         (0xcc)
 
 class ClientPacket : public AbstractPacketSections {
-public:
-    ClientPacket(){}
-    std::vector<Section*> get_packet_sections() const {
-        std::vector<Section*> sections;
+private:
+    std::vector<Section*> sections_;
 
-        //        std::shared_ptr<HeaderSection> header = std::make_shared<HeaderSection>();
+public:
+    ClientPacket()
+    {
+
+    }
+    std::vector<Section*> get_packet_sections() {
         HeaderSection* header = new HeaderSection();
         header->content = std::string{static_cast<char>HEADER1, static_cast<char>HEADER2};
 
@@ -155,29 +158,28 @@ public:
 
         FooterSection* footer = new FooterSection();
         footer->content = std::string{static_cast<char>FOOTER1, static_cast<char>FOOTER2};
-        sections.push_back(header);
-        sections.push_back(cmd);
-        sections.push_back(length);
-        sections.push_back(data);
-        sections.push_back(crc);
-        sections.push_back(footer);
-
-        return sections;
+        sections_.push_back(header);
+        sections_.push_back(cmd);
+        sections_.push_back(length);
+        sections_.push_back(data);
+        sections_.push_back(crc);
+        sections_.push_back(footer);
+        return sections_;
     };
 
-    WhatFuckingDo get_error_packet(PacketErrors error, const char *data, size_t size){
+    void get_error_packet(PacketErrors error, const std::map<PacketSections, std::string>& packet){
         switch (error) {
         case PacketErrors::Wrong_CRC : {
             std::cout << "Wrong CRC" << std::endl;
-            return WhatFuckingDo::Find_Header;
+            break;
         }
         case PacketErrors::Wrong_Footer : {
             std::cout << "Wrong Footer" << std::endl;
-            return WhatFuckingDo::Find_Header;
+            break;
         }
         default: {
             std::cout << "There is a new error" << std::endl;
-            return WhatFuckingDo::Find_Header;
+            break;
         }
         }
     }
@@ -247,6 +249,7 @@ void send_data_to_server() {
     std::string shit_message_footer  {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
                 (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
                 (char)0x24,    (char)0x00 };
+
     all_data.push_back(shit_message_ok);
     all_data.push_back(fuck_message_ok);
     all_data.push_back(shit_message_crc);

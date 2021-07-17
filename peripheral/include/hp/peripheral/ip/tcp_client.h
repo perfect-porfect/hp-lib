@@ -6,10 +6,10 @@
 #include <boost/thread.hpp>
 
 #include <boost/mpl/size.hpp>
-#include "abstract_peripheral.h"
-#include "abstract_buffer.h"
+#include "abstract_ip.h"
+#include "hp/common/buffer/abstract_buffer.h"
 #include "message_extractor.h"
-#include "buffer_template.h"
+#include "hp/common/buffer/buffer_template.h"
 
 #define MAX_LENGTH (40 * 1024 * 1024)
 

@@ -209,7 +209,7 @@ void thread_for_work_client(TCPClient *client) {
 void new_connection(TCPClient *client)
 {
     auto packet = std::make_shared<ClientPacket>();
-    client->set_extractor(packet.get());
+    client->extract_messages(packet.get());
     client->set_buffer_size((uint64_t)2 * 1024);
     Client_Thread = std::make_shared<std::thread>(thread_for_work_client, client);
     std::cout << "id: " << client->get_client_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;

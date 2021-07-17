@@ -42,7 +42,7 @@ public:
     boost::signals2::connection dont_buffer_notify_me_data_received(std::function<void (const char * data, size_t size, uint32_t id)> func);
 
     void set_buffer(AbstractBuffer *buffer);
-    void set_extractor(AbstractPacketSections *extractor);
+    void extract_messages(AbstractPacketSections *extractor);
     void set_buffer_size(uint64_t size_bytes);
     std::shared_ptr<AbstractSerializableMessage> get_next_packet();
     BufferError get_next_bytes(uint8_t *data, const uint32_t len, const uint32_t timeout_ms = 0);
@@ -83,7 +83,7 @@ private:
     boost::asio::io_context io_context_;
 
     static std::atomic<int> ID_Counter_;
-    bool is_buffer_data_;
+    bool is_buffered_data_;
     bool buffer_is_mine_;
     AbstractBuffer* buffer_;
     AbstractPacketSections* msg_extractor_;

@@ -104,6 +104,11 @@ std::string CircularBuffer::get_all_bytes()
     return data;
 }
 
+uint32_t CircularBuffer::get_remain_bytes()
+{
+    return remain_bytes();
+}
+
 void CircularBuffer::set_size(uint32_t size)
 {
     std::unique_lock<std::mutex> lk(m);

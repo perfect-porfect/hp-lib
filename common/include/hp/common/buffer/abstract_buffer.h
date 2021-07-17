@@ -18,6 +18,8 @@ public:
     virtual uint8_t read_next_byte() = 0;
     virtual BufferError write(const uint8_t *data, const uint32_t len) = 0;
     virtual std::string get_all_bytes() = 0;
+    virtual uint32_t get_remain_bytes() = 0;
+
     virtual ~AbstractBuffer() {}
 };
 

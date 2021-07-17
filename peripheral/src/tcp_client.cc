@@ -37,7 +37,7 @@ void TCPClient::set_buffer(AbstractBuffer* buffer)
     buffer_is_mine_ = false;
 }
 
-void TCPClient::set_extractor(AbstractPacketSections* extractor)
+void TCPClient::extract_messages(AbstractPacketSections* extractor)
 {
     msg_extractor_ = extractor;
 }
@@ -47,7 +47,7 @@ void TCPClient::initialize()
     buffer_ = nullptr;
     msg_extractor_ = nullptr;
     buffer_is_mine_ = true;
-    is_buffer_data_ = true;
+    is_buffered_data_ = true;
     buffer_size_ = 10 * 1024 * 1024;
     receive_size_ = 0;
     send_size_= 0;
@@ -108,7 +108,7 @@ void TCPClient::async_send(const char *data, const uint32_t size, std::function<
 void TCPClient::handle_read_data(const boost::system::error_code error, const size_t bytes_transferred)
 {
     if (!error) {
-        if (!is_buffer_data_) {
+        if (!is_buffered_data_) {
             data_received_connections_((char*)data_.data(), bytes_transferred, id_);
         } else {
             buffer_->write(data_.data(), bytes_transferred);
@@ -146,6 +146,11 @@ std::string TCPClient::get_all_bytes()
     return buffer_->get_all_bytes();
 }
 
+uint32_t TCPClient::get_remain_bytes() const
+{
+
+}
+
 void TCPClient::check_line_state()
 {
 
@@ -171,7 +176,7 @@ boost::signals2::connection TCPClient::notify_me_when_disconnected(std::function
 
 boost::signals2::connection TCPClient::dont_buffer_notify_me_data_received(std::function<void (const char *, size_t, uint32_t)> func)
 {
-    is_buffer_data_ = false;
+    is_buffered_data_ = false;
     return data_received_connections_.connect(func);
 }
 

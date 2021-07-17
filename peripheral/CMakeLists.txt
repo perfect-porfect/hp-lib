@@ -12,6 +12,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(include/hp/peripheral)
 include_directories(include/hp/peripheral/ip)
+include_directories(include/hp/peripheral/serial)
 
 find_package(Threads)
 find_package(Boost REQUIRED COMPONENTS system thread chrono regex filesystem)

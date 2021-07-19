@@ -10,7 +10,7 @@
 #include "message_extractor.h"
 #include "hp/common/buffer/buffer_template.h"
 
-#define MAX_LENGTH (1 * 1024 * 1024)
+#define MAX_LENGTH (1 * 1024)
 
 typedef std::shared_ptr<boost::asio::ip::tcp::socket> TCPSocketShared;
 

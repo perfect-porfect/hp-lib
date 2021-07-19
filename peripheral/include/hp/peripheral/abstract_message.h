@@ -149,8 +149,7 @@ enum class PacketErrors{
     Wrong_Footer,
     Wrong_CMD,
     Wrong_Length_Include,
-    CMD_Factory_Null,
-    CRC_Checker_Null
+
 };
 
 enum class PacketDefineErrors{
@@ -165,11 +164,16 @@ enum class PacketDefineErrors{
     Length_Include_CRC_But_Packet_Not,
     Length_Include_CMD_But_Packet_Not,
     Packet_Not_Include_Header,
+    CMD_Factory_Null,
+    CRC_Checker_Null,
     No_Error
 };
 
 class AbstractPacketStructure {
 public:
+    void init_packet() {
+        init_packet_structure(packet_);
+    }
     virtual void init_packet_structure(std::vector<std::shared_ptr<Section>>& packet_section) = 0;
     virtual void packet_section_error(const PacketErrors error, const std::map<PacketSections, std::string>& packet) = 0;
     std::vector<std::shared_ptr<Section>>& get_packet_structure() { return packet_; }
@@ -279,20 +283,24 @@ public:
     virtual ~AbstractPacketStructure(){}
 
 private:
-    bool is_crc_include_ok (CRCSection* crc_) {
-            if (crc_->include & PacketSections::Data && !is_data_exist_)
+    bool is_crc_ok (std::shared_ptr<CRCSection> crc) {
+            if (crc->include & PacketSections::Data && !is_data_exist_)
                 get_packet_define_error(PacketDefineErrors::CRC_Include_Data_But_Packet_Not);
-            if (crc_->include & PacketSections::Footer && !is_footer_exist_)
+            if (crc->include & PacketSections::Footer && !is_footer_exist_)
                 get_packet_define_error(PacketDefineErrors::CRC_Include_Footer_But_Packet_Not);
-            if (crc_->include & PacketSections::Header && !is_header_exist_)
+            if (crc->include & PacketSections::Header && !is_header_exist_)
                 get_packet_define_error(PacketDefineErrors::CRC_Include_Header_But_Packet_Not);
-            if (crc_->include & PacketSections::CMD && !is_cmd_exist_)
+            if (crc->include & PacketSections::CMD && !is_cmd_exist_)
                 get_packet_define_error(PacketDefineErrors::CRC_Include_CMD_But_Packet_Not);
-            if (crc_->include & PacketSections::Length && !is_length_exist_)
+            if (crc->include & PacketSections::Length && !is_length_exist_)
                 get_packet_define_error(PacketDefineErrors::CRC_Include_Length_But_Packet_Not);
+            if (crc->crc_checker == nullptr)
+                get_packet_define_error(PacketDefineErrors::CMD_Factory_Null);
         return true;
     }
+    bool is_cmd_ok() {
 
+    }
     bool is_length_include_ok (LengthSection* length) {
         if (length_->include & PacketSections::Data && !is_data_exist_)
             get_packet_define_error(PacketDefineErrors::Length_Include_Data_But_Packet_Not);

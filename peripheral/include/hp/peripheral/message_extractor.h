@@ -25,7 +25,7 @@ private:
     //Extractor
     std::shared_ptr<AbstractPacketStructure> packet_structure_;
     std::shared_ptr<AbstractBuffer> buffer_;
-    std::vector<Section*> packet_sections_;
+    std::vector<std::shared_ptr<Section>> packet_sections_;
 };
 
 } // namespace peripheral

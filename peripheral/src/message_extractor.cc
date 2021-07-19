@@ -7,10 +7,9 @@ namespace peripheral {
 MessageExtractor::MessageExtractor(std::shared_ptr<AbstractPacketStructure> packet_structure,  std::shared_ptr<AbstractBuffer> buffer)
     : packet_structure_(packet_structure), buffer_(buffer)
 {
-    auto packet_section = packet_structure_->get_packet_structure();
-    packet_structure_->init_packet_structure(packet_section);
-    packet_structure_->is_packet_sections_correct(packet_section);
-//    packet_sections_ = extractor_->get_packet_sections();
+    packet_structure_->init_packet();
+    packet_sections_ = packet_structure_->get_packet_structure();
+    packet_structure_->is_packet_sections_correct(packet_sections_);
 }
 
 std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
@@ -89,29 +88,29 @@ std::shared_ptr<AbstractSerializableMessage> MessageExtractor::find_message()
             }
             }
         }
-//        if (is_crc_exist_) {
-//            if (crc_include_data_)
-//                packet_sections[PacketSections::Data] = data;
-//            if (crc_include_cmd_)
-//                packet_sections[PacketSections::CMD] = cmd;
-//            if (crc_include_footer_)
-//                packet_sections[PacketSections::Footer] = footer;
-//            if (crc_include_header_)
-//                packet_sections[PacketSections::Header] = data;
-//            if (crc_include_crc_)
-//                packet_sections[PacketSections::CRC] = crc;
-//            if (crc_include_length_)
-//                packet_sections[PacketSections::Length] = len;
-//            is_crc_ok = crc_->crc_checker->is_valid(packet_sections, crc);
-//            if (!is_crc_ok) {
-//                packet_structure_->packet_section_error(PacketErrors::Wrong_CRC, packet_sections);
-//                continue;
-//            }
-//        }
-//        if (is_crc_ok && is_footer_ok && msg != nullptr) {
-//            msg->deserialize((char*)data.data(), data_size);
-//            is_find_message = true;
-//        }
+        //        if (is_crc_exist_) {
+        //            if (crc_include_data_)
+        //                packet_sections[PacketSections::Data] = data;
+        //            if (crc_include_cmd_)
+        //                packet_sections[PacketSections::CMD] = cmd;
+        //            if (crc_include_footer_)
+        //                packet_sections[PacketSections::Footer] = footer;
+        //            if (crc_include_header_)
+        //                packet_sections[PacketSections::Header] = data;
+        //            if (crc_include_crc_)
+        //                packet_sections[PacketSections::CRC] = crc;
+        //            if (crc_include_length_)
+        //                packet_sections[PacketSections::Length] = len;
+        //            is_crc_ok = crc_->crc_checker->is_valid(packet_sections, crc);
+        //            if (!is_crc_ok) {
+        //                packet_structure_->packet_section_error(PacketErrors::Wrong_CRC, packet_sections);
+        //                continue;
+        //            }
+        //        }
+        //        if (is_crc_ok && is_footer_ok && msg != nullptr) {
+        //            msg->deserialize((char*)data.data(), data_size);
+        //            is_find_message = true;
+        //        }
     }
     return msg;
 }
@@ -123,17 +122,17 @@ std::shared_ptr<AbstractBuffer> MessageExtractor::get_buffer_() const
 
 void MessageExtractor::find_header()
 {
-//    uint32_t header_index = 0;
-//    while(1) {
-//        if (header_index == header_->content.size())
-//            break;
-//        char header = buffer_->read_next_byte();
-//        if (header_->content[header_index] ==  header)
-//            header_index++;
-//        else {
-//            header_index = 0;
-//        }
-//    }
+    //    uint32_t header_index = 0;
+    //    while(1) {
+    //        if (header_index == header_->content.size())
+    //            break;
+    //        char header = buffer_->read_next_byte();
+    //        if (header_->content[header_index] ==  header)
+    //            header_index++;
+    //        else {
+    //            header_index = 0;
+    //        }
+    //    }
 }
 
 

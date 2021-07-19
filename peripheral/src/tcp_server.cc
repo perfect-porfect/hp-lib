@@ -119,15 +119,21 @@ TCPClientShared TCPServer::get_client(uint32_t id)
 
 void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> socket, const boost::system::error_code &error)
 {
-    if(!error && accept_connection_) {
-        auto tcp_client = std::make_shared<TCPClient>(socket);
-        all_clients_map_[tcp_client->get_client_id()] = tcp_client;
-        tcp_client->notify_me_when_disconnected(std::bind(&TCPServer::disconnect, this, std::placeholders::_1));
+    try {
 
-        client_object_connections_(tcp_client);
-        tcp_client->connect();
-        client_number_++;
-        handle_connection();
+        if(!error && accept_connection_) {
+            auto tcp_client = std::make_shared<TCPClient>(socket);
+            clients_mutex_.lock();
+            all_clients_map_[tcp_client->get_client_id()] = tcp_client;
+            clients_mutex_.unlock();
+            tcp_client->notify_me_when_disconnected(std::bind(&TCPServer::disconnect, this, std::placeholders::_1));
+            client_object_connections_(tcp_client);
+            tcp_client->connect();
+            client_number_++;
+            handle_connection();
+        }
+    }  catch (...) {
+        std::cout << "fuuuuuuuck" << std::endl;
     }
 }
 

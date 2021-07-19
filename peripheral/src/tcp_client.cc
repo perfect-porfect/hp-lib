@@ -51,7 +51,7 @@ void TCPClient::initialize()
     msg_extractor_ = nullptr;
     buffer_is_mine_ = true;
     is_buffered_data_ = true;
-    buffer_size_ = 10 * 1024 * 1024;
+    buffer_size_ = 1 * 1024;
     receive_size_ = 0;
     send_size_= 0;
     id_ = ID_Counter_;
@@ -100,7 +100,8 @@ void TCPClient::set_buffer_size(uint64_t size_bytes)
 
 size_t TCPClient::send(const char *data, const uint32_t size)
 {
-    if (is_connected_) {
+    //TODO(HP) Do i must check these variables?
+    if (is_connected_ /*&& size != 0 && data != nullptr*/) {
         send_size_ += size;
         return socket_->send(boost::asio::buffer(data, size));
     }
@@ -137,7 +138,6 @@ BufferError TCPClient::get_next_bytes(uint8_t *data, const uint32_t len, const u
 {
     if (msg_extractor_ != nullptr || buffer_ == nullptr)
         return BufferError::BUF_NODATA;
-    return BufferError::BUF_NODATA;
     auto ret = buffer_->read(data, len, timeout_ms);
     return ret;
 }

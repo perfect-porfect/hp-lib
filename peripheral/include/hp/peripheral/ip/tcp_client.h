@@ -6,12 +6,11 @@
 #include <boost/thread.hpp>
 
 #include <boost/mpl/size.hpp>
-#include "abstract_ip.h"
 #include "hp/common/buffer/abstract_buffer.h"
 #include "message_extractor.h"
 #include "hp/common/buffer/buffer_template.h"
 
-#define MAX_LENGTH (40 * 1024 * 1024)
+#define MAX_LENGTH (1 * 1024 * 1024)
 
 typedef std::shared_ptr<boost::asio::ip::tcp::socket> TCPSocketShared;
 
@@ -27,7 +26,6 @@ public:
     TCPClient(TCPSocketShared socket);
     TCPClient(std::string ip, short port);
 
-
     bool connect();
     void disconnect();
     size_t send(const char* data, const uint32_t size);
@@ -41,15 +39,14 @@ public:
     boost::signals2::connection notify_me_when_disconnected(std::function<void (int) >func);
     boost::signals2::connection dont_buffer_notify_me_data_received(std::function<void (const char * data, size_t size, uint32_t id)> func);
 
-    void set_buffer(AbstractBuffer *buffer);
-    void extract_messages(AbstractPacketSections *extractor);
+    void set_buffer(std::shared_ptr<AbstractBuffer> buffer);
+    void extract_messages(std::shared_ptr<AbstractPacketStructure> extractor);
     void set_buffer_size(uint64_t size_bytes);
     std::shared_ptr<AbstractSerializableMessage> get_next_packet();
     BufferError get_next_bytes(uint8_t *data, const uint32_t len, const uint32_t timeout_ms = 0);
     uint8_t get_next_byte();
     std::string get_all_bytes();
     uint32_t get_remain_bytes() const;
-    void check_line_state();
 
     void print_send_receive_rate();
     void print_send_rate();
@@ -66,10 +63,13 @@ private:
     short port_;
     uint64_t buffer_size_;
     bool is_connected_;
+    bool is_running_;
+    bool is_socket_create_by_server_;
     int id_;
     std::shared_ptr<boost::asio::ip::tcp::socket> socket_;
     boost::shared_ptr<boost::asio::io_context::work> work_;
 
+    //TODO(HP): change this variabe to char * because code will be crash in big size
     std::array<uint8_t, MAX_LENGTH> data_;
     boost::signals2::signal <void (const char* data, size_t size, uint32_t id)> data_received_connections_;
     boost::signals2::signal <void (size_t)> disconnect_connections_;
@@ -85,8 +85,8 @@ private:
     static std::atomic<int> ID_Counter_;
     bool is_buffered_data_;
     bool buffer_is_mine_;
-    AbstractBuffer* buffer_;
-    AbstractPacketSections* msg_extractor_;
+    std::shared_ptr<AbstractBuffer> buffer_;
+    std::shared_ptr<AbstractPacketStructure> msg_extractor_;
     std::shared_ptr<MessageExtractor> tcp_message_extractor_;
 };
 

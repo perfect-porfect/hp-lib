@@ -2,19 +2,19 @@
 #include "tcp_server.h"
 #include "hp/common/buffer/circular_buffer.h"
 #include "hp/common/buffer/buffer_template.h"
-#include "abstract_ip.h"
 #include "hp/common/buffer/fast_buffer.h"
+#include "abstract_ip.h"
 
 
 //The wire format of a simple packet
-//                        0            2            6                 10
-//                        +------------+------------+------------------+------------------+--------------+------------+
-// Name:                  |   Header   |    CMD     |       Len        |       Data       |     CRC      |   Footer   |
-//                        +------------+------------+------------------+------------------+--------------+------------+
-// Bytes:                 |   2 Bytes  |  2 Bytes   |     4 Bytes      |    Len value     |    4 Bytes   |   2 Bytes  |
-//                        +------------+------------+------------------+------------------+--------------+------------+
-// Packet Detail:         | 0xaa 0xff  | SHIT, FUCK | First byte's msb |  Serialize Data  | Sum of Bytes |  0xaa 0xcc |
-//                        +------------+------------+------------------+------------------+--------------+------------+
+//                        0            2            6                  x
+//                        +------------+------------+------------------+
+// Name:                  |   Header   |    CMD     |       Data       |
+//                        +------------+------------+------------------+
+// Bytes:                 |   2 Bytes  |  2 Bytes   |    Len value     |
+//                        +------------+------------+------------------+
+// Packet Detail:         | 0xaa 0xff  | SHIT, FUCK |  Serialize Data  |
+//                        +------------+------------+------------------+
 
 
 #define SERVER_PORT (8585)
@@ -62,14 +62,14 @@ private:
     uint32_t msg_size_;
 
 public:
-    FuckMessage() { msg_size_ = sizeof (date_time_);}
+    FuckMessage() { msg_size_ = 9; }
     void serialize(char *buffer, size_t size) {
         memcpy(buffer, (void*) &date_time_, size);
     }
     void deserialize(const char *buffer, size_t size) {
         memcpy((void*) & date_time_, buffer, size);
     }
-    size_t get_serialize_size() const { return sizeof(DateTime); }
+    size_t get_serialize_size() const { return msg_size_; }
     int get_type() const { return MyMessages::FUCK; }
     DateTime get_date_time() const { return date_time_;}
 };
@@ -108,12 +108,12 @@ public:
 class ChecksumChecker : public AbstractCRC
 {
 public:
-    bool is_valid(const std::map<PacketSections, std::string>& input, const std::string& data) {
+    bool is_valid(const char *data, size_t data_size, const char *crc_data, size_t crc_size) const {
+        (void)crc_size;
         short crc_val = 0;
-        auto packet_data = input.at(PacketSections::Data);
-        for (uint32_t i = 0 ; i < packet_data.size(); i++)
-            crc_val += packet_data[i];
-        short crc_data_val = *((short *)(&data[0]));
+        for (uint32_t i = 0 ; i < data_size; i++)
+            crc_val += data[i];
+        short crc_data_val = *((short *)(crc_data));
         if (crc_data_val != crc_val)
             return false;
         else
@@ -134,11 +134,7 @@ private:
     std::vector<Section*> sections_;
 
 public:
-    ClientPacket()
-    {
-
-    }
-    std::vector<Section*> get_packet_sections() {
+    ClientPacket(){
         HeaderSection* header = new HeaderSection();
         header->content = std::string{static_cast<char>HEADER1, static_cast<char>HEADER2};
 
@@ -146,24 +142,14 @@ public:
         cmd->size_bytes = CMD_SIZE;
         cmd->msg_factory = std::make_shared<MessageFactory>();
 
-        LengthSection* length = new LengthSection();
-        length->include = PacketSections::Data;
-        length->is_first_byte_msb = true;
-        length->size_bytes = LENGTH_SIZE;
-
         DataSection* data = new DataSection();
-        CRCSection* crc = new CRCSection();
-        crc->crc_checker = std::make_shared<ChecksumChecker>();
-        crc->size_bytes = CRC_SIZE;
 
-        FooterSection* footer = new FooterSection();
-        footer->content = std::string{static_cast<char>FOOTER1, static_cast<char>FOOTER2};
         sections_.push_back(header);
         sections_.push_back(cmd);
-        sections_.push_back(length);
         sections_.push_back(data);
-        sections_.push_back(crc);
-        sections_.push_back(footer);
+    }
+
+    std::vector<Section*> get_packet_sections(){
         return sections_;
     };
 
@@ -177,6 +163,10 @@ public:
             std::cout << "Wrong Footer" << std::endl;
             break;
         }
+        case PacketErrors::Wrong_CMD : {
+            std::cout << "Wrong CMD" << std::endl;
+            break;
+        }
         default: {
             std::cout << "There is a new error" << std::endl;
             break;
@@ -188,22 +178,25 @@ public:
 std::shared_ptr<std::thread> Client_Thread;
 std::shared_ptr<boost::thread_group> Thread_Clients_;
 
-void thread_for_work_client(TCPClient *client) {
+void thread_for_work_client(TCPClientShared client) {
     int counter = 0;
     while (1) {
         auto msg = client->get_next_packet();
         if (msg->get_type() == MyMessages::FUCK) {
             auto fuck_msg = std::dynamic_pointer_cast<FuckMessage>(msg);
-            std::cout << "# " << counter << " FUCK_MSG" << std::endl;
+            std::cout << "#" << counter << "FUCK_MSG" << std::endl;
         } else if (msg->get_type() == MyMessages::SHIT) {
             auto shit_msg = std::dynamic_pointer_cast<ShitMessage>(msg);
-            std::cout << "#" << counter << " SHIT_MSG  student id: " << shit_msg->get_student().id << "  age: " << (int)shit_msg->get_student().age << std::endl;
+            std::cout << "#" << counter << " SHIT_MSG" << std::endl;
+        } else if (msg->get_type() == MyMessages::Wrong) {
+            auto wron_msg = std::dynamic_pointer_cast<WrongMessage>(msg);
+            std::cout << "#" << counter << " WRONG_MSG" << std::endl;
         }
         counter++;
     }
 }
 
-void new_connection(TCPClient *client)
+void new_connection(TCPClientShared client)
 {
     auto packet = std::make_shared<ClientPacket>();
     client->extract_messages(packet.get());
@@ -234,36 +227,31 @@ void send_data_to_server() {
     }
 
     std::vector<std::string> all_data;
-    std::string fuck_message_ok      {(char)HEADER1, (char)HEADER2, (char)0xd1,    (char)0xd2, (char)0x00, (char)0x09,
-                (char)0x15,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09,
-                (char)0x38,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
+    std::string fuck_message_ok  {(char)HEADER1, (char)HEADER2, (char)0xd1,    (char)0xd2,
+                (char)0x15,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x05, (char)0x06, (char)0x07, (char)0x08, (char)0x09 };
 
-    std::string shit_message_ok      {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
-                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
-                (char)0x24,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
+    std::string shit_message_ok  {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3,
+                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20 };
 
-    std::string shit_message_crc     {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
-                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
-                (char)0x22,    (char)0x00,    (char)FOOTER1, (char)FOOTER2 };
-
-    std::string shit_message_footer  {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd3, (char)0x00, (char)0x05,
-                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20,
-                (char)0x24,    (char)0x00 };
+    std::string shit_message_cmd  {(char)HEADER1, (char)HEADER2, (char)0xd2,    (char)0xd5,
+                (char)0x04,    (char)0x00,    (char)0x00,    (char)0x00, (char)0x20 };
 
     all_data.push_back(shit_message_ok);
     all_data.push_back(fuck_message_ok);
-    all_data.push_back(shit_message_crc);
-    all_data.push_back(shit_message_footer);
-    all_data.push_back(fuck_message_ok);
-    while(1) {
+    all_data.push_back(shit_message_cmd);
+
+    int counter = 0;
+    while(counter < 5) {
         for (auto cur_packet : all_data) {
             uint ret = client->send(cur_packet.data(), cur_packet.length());
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
             if (ret != cur_packet.size()) {
                 std::cout << "fuuck" << std::endl;
                 exit(1);
             }
         }
+        counter++;
+        //        std::cout << "send: " << counter++ << std::endl;
     }
 }
 

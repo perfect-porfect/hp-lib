@@ -12,7 +12,6 @@ SerialPort::SerialPort(void)
     is_set_buffer_ = false;
     buffer_size_ = 2 * 1024 * 1024;
     buffer_ = nullptr;
-    msg_extractor_ = nullptr;
     is_set_extractor_ = false;
     is_buffered_data_ = true;
     is_running_ = false;
@@ -92,18 +91,18 @@ void SerialPort::print_receive_rate()
 
 void SerialPort::extract_message()
 {
-    serial_message_extractor_ = boost::make_shared<MessageExtractor>(msg_extractor_, buffer_);
-    while(is_running_) {
-        auto msg = serial_message_extractor_->find_message();
-        if (msg == nullptr) {
-            std::cout << "fucking null msg" << std::endl;
-            exit(1);
-        }
-        messages_buffer_.write(msg);
-    }
+//    serial_message_extractor_ = boost::make_shared<MessageExtractor>(msg_extractor_, buffer_);
+//    while(is_running_) {
+//        auto msg = serial_message_extractor_->find_message();
+//        if (msg == nullptr) {
+//            std::cout << "fucking null msg" << std::endl;
+//            exit(1);
+//        }
+//        messages_buffer_.write(msg);
+//    }
 }
 
-bool SerialPort::start(const std::string& port, int baud_rate)
+bool SerialPort::start(const std::string& port, SerialBaudRate baud_rate)
 {
     boost::system::error_code ec;
 
@@ -114,7 +113,6 @@ bool SerialPort::start(const std::string& port, int baud_rate)
 
     port_ = boost::make_shared<boost::asio::serial_port>(io_service_);
 
-
     port_->set_option(boost::asio::serial_port_base::baud_rate(baud_rate));
     port_->set_option(boost::asio::serial_port_base::character_size(8));
     port_->set_option(boost::asio::serial_port_base::stop_bits(boost::asio::serial_port_base::stop_bits::one));
@@ -122,14 +120,13 @@ bool SerialPort::start(const std::string& port, int baud_rate)
     port_->set_option(boost::asio::serial_port_base::flow_control(boost::asio::serial_port_base::flow_control::none));
     port_->open(port.data(), ec);
     if (ec) {
-        std::cout << "error : port_->open() failed...com_port_name="
-            << port << ", e=" << ec.message().c_str() << std::endl;
+        std::cout << "error : port_->open() failed...com_port_name=" << port << ", e=" << ec.message().c_str() << std::endl;
         return false;
     }
 
     is_running_  = true;
     if (!is_set_buffer_)
-        buffer_ = new CircularBuffer(buffer_size_);
+        buffer_ = std::make_shared<CircularBuffer>(buffer_size_);
     if (is_set_extractor_) {
         thread_group_.create_thread(boost::bind(&SerialPort::extract_message, this));
     }
@@ -153,7 +150,7 @@ void SerialPort::stop()
     io_service_.reset();
 }
 
-void SerialPort::set_buffer(AbstractBuffer *buffer)
+void SerialPort::set_buffer(std::shared_ptr<AbstractBuffer> buffer)
 {
     is_set_buffer_ = true;
     buffer_ = buffer;
@@ -164,9 +161,9 @@ void SerialPort::set_buffer_size(uint32_t size)
     buffer_size_ = size;
 }
 
-void SerialPort::extract_messages(AbstractPacketSections *extractor)
+void SerialPort::extract_messages(std::shared_ptr<AbstractPacketStructure> extractor)
 {
-    msg_extractor_ = extractor;
+    serial_message_extractor_ = extractor;
     is_set_extractor_ = true;
 }
 
@@ -230,8 +227,6 @@ void SerialPort::async_send(const std::string &buf, std::function<void (int)> fu
 
 void SerialPort::async_send(const char *buf, const int &size, std::function<void (int)> func)
 {
-    boost::system::error_code ec;
-
     if (!port_)
         return;
     if (size == 0)

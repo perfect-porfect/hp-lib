@@ -17,12 +17,12 @@ public:
     void start();
     void stop();
     bool is_running() const;
-    void notify_me_for_new_connection(std::function<void (TCPClient *)> func);
-    void send_to_all_clients(char* data, size_t size);
-    void send_to_client(char* data, size_t size, uint32_t id);
+    void notify_me_for_new_connection(std::function<void (TCPClientShared)> func);
+    void send_to_all_clients(const char *data, size_t size);
+    void send_to_client(const char* data, size_t size, uint32_t id);
     void accept_connection(bool state);
     void disconnect_client(const uint32_t id);
-    TCPClient *get_client(uint32_t id);
+    TCPClientShared get_client(uint32_t id);
     ~TCPServer();
 
 private:
@@ -41,7 +41,7 @@ private:
     boost::shared_ptr<boost::asio::io_context> io_context_;
     boost::shared_ptr<boost::thread> worker_thread_;
     boost::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor_;
-    boost::signals2::signal<void (TCPClient*)> client_object_connections_;
+    boost::signals2::signal<void (TCPClientShared)> client_object_connections_;
 
 };
 

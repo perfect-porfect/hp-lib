@@ -1,16 +1,20 @@
 #ifndef TCPMESSAGEEXTRACTOR_H
 #define TCPMESSAGEEXTRACTOR_H
 
-#include "abstract_ip.h"
 #include "hp/common/buffer/abstract_buffer.h"
+#include "abstract_message.h"
 
 namespace hp {
 namespace peripheral {
 
-class MessageExtractor {
+class MessageExtractor : public AbstractMessageExtractor
+{
 public:
-    MessageExtractor(AbstractPacketSections* extractor, AbstractBuffer* buffer);
+    MessageExtractor(std::shared_ptr<AbstractPacketStructure> packet_structure,  std::shared_ptr<AbstractBuffer> buffer);
     std::shared_ptr<AbstractSerializableMessage> find_message();
+    std::shared_ptr<AbstractBuffer> get_buffer_() const;
+    std::shared_ptr<AbstractPacketStructure> get_packet_structure() const { return packet_structure_; }
+
 private:
     void find_header();
     int calc_len(const char *data, uint32_t size, bool is_msb);
@@ -19,38 +23,9 @@ private:
     void fill_packet(std::string& source, const Containter &data);
 
     //Extractor
-    AbstractPacketSections* extractor_;
-    AbstractBuffer* buffer_;
+    std::shared_ptr<AbstractPacketStructure> packet_structure_;
+    std::shared_ptr<AbstractBuffer> buffer_;
     std::vector<Section*> packet_sections_;
-
-    const HeaderSection* header_;
-    const CMDSection* cmd_;
-    const LengthSection* length_;
-    const CRCSection* crc_;
-    const DataSection* data_;
-    const FooterSection* footer_;
-
-    bool is_header_exist_;
-    bool is_cmd_exist_;
-    bool is_length_exist_;
-    bool is_data_exist_;
-    bool is_crc_exist_;
-    bool is_footer_exist_;
-
-    bool crc_include_header_;
-    bool crc_include_footer_;
-    bool crc_include_length_;
-    bool crc_include_data_;
-    bool crc_include_cmd_;
-    bool crc_include_crc_;
-
-    uint32_t cmd_size_;
-    uint32_t header_size_;
-    uint32_t len_size_;
-    uint32_t data_size_;
-    uint32_t crc_size_;
-    uint32_t footer_size_;
-
 };
 
 } // namespace peripheral

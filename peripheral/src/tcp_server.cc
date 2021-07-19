@@ -33,13 +33,14 @@ void TCPServer::stop()
     acceptor_.reset();
 }
 
-void TCPServer::notify_me_for_new_connection(std::function<void (TCPClient*)> func)
+void TCPServer::notify_me_for_new_connection(std::function<void (TCPClientShared)> func)
 {
     client_object_connections_.connect(func);
 }
 
-void TCPServer::send_to_all_clients(char *data, size_t size)
+void TCPServer::send_to_all_clients(const char *data, size_t size)
 {
+    clients_mutex_.lock();
     for(auto client: all_clients_map_) {
         if (client.second->is_connected()) {
             client.second->send(data, size);
@@ -47,13 +48,16 @@ void TCPServer::send_to_all_clients(char *data, size_t size)
             std::cout << "client's closed" << std::endl;
         }
     }
+    clients_mutex_.unlock();
 }
 
-void TCPServer::send_to_client(char *data, size_t size, uint32_t id)
+void TCPServer::send_to_client(const char *data, size_t size, uint32_t id)
 {
     auto it = all_clients_map_.find(id);
-    if (it != all_clients_map_.end())
-        it->second->send(data, size);
+    if (it != all_clients_map_.end()) {
+        if (it->second->is_connected())
+            it->second->send(data, size);
+    }
 }
 
 TCPServer::~TCPServer()
@@ -89,9 +93,12 @@ void TCPServer::accept_connection(bool state)
 
 void TCPServer::disconnect_client(const uint32_t id)
 {
+    clients_mutex_.lock();
     auto it = all_clients_map_.find(id);
     if (it != all_clients_map_.end())
-        it->second->disconnect();
+        if (it->second->is_connected())
+            it->second->disconnect();
+    clients_mutex_.unlock();
 }
 
 //void TCPServer::dont_buffer_notify_me_data_received(std::function<void (char * data, size_t size, uint32_t id)> func)
@@ -99,13 +106,13 @@ void TCPServer::disconnect_client(const uint32_t id)
 //    received_data_func_ = func;
 //}
 
-TCPClient* TCPServer::get_client(uint32_t id)
+TCPClientShared TCPServer::get_client(uint32_t id)
 {
-    TCPClient* client = nullptr;
+    TCPClientShared client = nullptr;
     clients_mutex_.lock();
     auto it = all_clients_map_.find(id);
     if (it != all_clients_map_.end())
-        client = it->second.get();
+        client = it->second;
     clients_mutex_.unlock();
     return client;
 }
@@ -116,7 +123,8 @@ void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> sock
         auto tcp_client = std::make_shared<TCPClient>(socket);
         all_clients_map_[tcp_client->get_client_id()] = tcp_client;
         tcp_client->notify_me_when_disconnected(std::bind(&TCPServer::disconnect, this, std::placeholders::_1));
-        client_object_connections_(tcp_client.get());
+
+        client_object_connections_(tcp_client);
         tcp_client->connect();
         client_number_++;
         handle_connection();

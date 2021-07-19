@@ -188,7 +188,7 @@ public:
 std::shared_ptr<std::thread> Client_Thread;
 std::shared_ptr<boost::thread_group> Thread_Clients_;
 
-void thread_for_work_client(TCPClient *client) {
+void thread_for_work_client(TCPClientShared client) {
     int counter = 0;
     while (1) {
         auto msg = client->get_next_packet();
@@ -206,7 +206,7 @@ void thread_for_work_client(TCPClient *client) {
     }
 }
 
-void new_connection(TCPClient *client)
+void new_connection(TCPClientShared client)
 {
     auto packet = std::make_shared<ClientPacket>();
     client->extract_messages(packet.get());

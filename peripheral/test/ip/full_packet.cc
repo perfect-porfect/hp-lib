@@ -2,7 +2,6 @@
 #include "tcp_server.h"
 #include "hp/common/buffer/circular_buffer.h"
 #include "hp/common/buffer/buffer_template.h"
-#include "hp/common/buffer/fast_buffer.h"
 
 
 //The wire format of a simple packet

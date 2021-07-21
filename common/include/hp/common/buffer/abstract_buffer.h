@@ -17,8 +17,13 @@ class AbstractBuffer
 {
 public:
     virtual BufferError read(uint8_t *data, const uint32_t len, const uint32_t timeout = 0) = 0;
-    virtual uint8_t read_next_byte() = 0;
+    virtual BufferError read(char *data, const uint32_t len, const uint32_t timeout = 0) = 0;
+    virtual char read_next_byte() = 0;
+
     virtual BufferError write(const uint8_t *data, const uint32_t len) = 0;
+    virtual BufferError write(const char *data, const uint32_t len) = 0;
+    virtual void clear_buffer() = 0;
+    virtual void erase_buffer() = 0;
     virtual std::string get_all_bytes() = 0;
     virtual uint32_t get_remain_bytes() = 0;
 

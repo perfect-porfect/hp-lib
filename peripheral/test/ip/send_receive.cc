@@ -2,7 +2,6 @@
 #include "tcp_server.h"
 #include "hp/common/buffer/circular_buffer.h"
 #include "hp/common/buffer/buffer_template.h"
-#include "hp/common/buffer/fast_buffer.h"
 #include "abstract_ip.h"
 
 
@@ -24,14 +23,13 @@ void thread_for_work_client(TCPClientShared client) {
     rece_data.resize(size_data);
     while (1) {
         //        std::this_thread::sleep_for(std::chrono::seconds(1));
-        auto ret = client->get_next_bytes((uint8_t*)rece_data.data(), rece_data.size());
+        auto ret = client->read_next_bytes((uint8_t*)rece_data.data(), rece_data.size());
         if (ret != BUF_NOERROR && ret != BUF_NODATA) {
             std::cout << "whyyyyyy???" << std::endl;
             continue;
         }
         //            std::cout << "Cant get data from: " << client->get_client_id() << std::endl;
         client->send(rece_data.data(), rece_data.size());
-
     }
 }
 
@@ -42,8 +40,10 @@ void date_received(const char * data, size_t size, uint32_t id) {
 void new_connection(TCPClientShared client)
 {
     //        client->set_buffer_size(10);
-    //    client->dont_buffer_notify_me_data_received(std::bind(date_received, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+//        client->dont_buffer_notify_me_data_received(std::bind(date_received, std::placeholders::_1, std::placeholders::_2, client->get_client_id()));
     //    printer_thread_ = new std::thread(std::bind(print_receive, client));
+    client->connect();
+//auto data = client->read_next_byte(10);
     auto thread = new std::thread(thread_for_work_client, client);
     clients_thread.push_back(thread);
     std::cout << "id: " << client->get_client_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
@@ -82,7 +82,7 @@ void send_data_to_server() {
     memset(&data[0], 0xaa, size_data);
     while (1) {
         client->send(send_data.data(), send_data.length());
-        auto ret = client->get_next_bytes((uint8_t*)data.data(), data.size(), 1000);
+        auto ret = client->read_next_bytes((uint8_t*)data.data(), data.size(), 1000);
         if (ret != BufferError::BUF_NOERROR) {
             std::cout << "fuck ID: " << client->get_client_id() << std::endl;
         }

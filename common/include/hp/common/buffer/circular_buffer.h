@@ -19,10 +19,14 @@ public:
     void set_size(uint32_t size);
     BufferError read(uint8_t *data, const uint32_t len, const uint32_t timeout = 0) override;
     BufferError write(const uint8_t *data, const uint32_t len) override;
-    uint8_t read_next_byte() override;
+    char read_next_byte() override;
     std::string get_all_bytes();
     uint32_t get_remain_bytes();
     virtual ~CircularBuffer();
+    BufferError read(char *data, const uint32_t len, const uint32_t timeout);
+    BufferError write(const char *data, const uint32_t len);
+    void clear_buffer();
+    void erase_buffer();
 private:
     inline unsigned count(void);
     inline bool check_free_space(const uint32_t len);

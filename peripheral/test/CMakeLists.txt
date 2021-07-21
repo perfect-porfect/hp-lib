@@ -36,5 +36,9 @@ target_link_libraries(buffer PUBLIC common peripheral #[[${GTEST_LIBRARIES}]] ${
 add_executable(buffer1 buffer/buffer1.cc)
 target_link_libraries(buffer1 PUBLIC common peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
 
+add_executable(buffer2 buffer/buffer2.cc)
+target_link_libraries(buffer2 PUBLIC common peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
+
 add_executable(serial serial/serial.cc)
 target_link_libraries(serial PUBLIC common peripheral #[[${GTEST_LIBRARIES}]] ${CMAKE_THREAD_LIBS_INIT})
+

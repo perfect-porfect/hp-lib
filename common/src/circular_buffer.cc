@@ -9,11 +9,11 @@ CircularBuffer::CircularBuffer(uint32_t size_bytes)
     : size_(size_bytes) , destructor_call_(false)
 {
     head_ = tail_ = 0;
+    buf_ = nullptr;
     buf_ = new uint8_t[size_];
-    for (uint64_t index = 0; index < size_ ; index++) {
-        buf_[index] = 0xfa;
-    }
-//  buf_.resize(size_bytes);
+    memset(buf_, 0x00, 1024 * 1024);
+    for (uint64_t index = 0; index < size_ ; index++)
+        buf_[size_ - 1] = 0xfa;
 }
 
 CircularBuffer::~CircularBuffer()
@@ -22,6 +22,69 @@ CircularBuffer::~CircularBuffer()
     read_signal_.notify_all();
     delete[] buf_;
     std::cout << "buffer distructor" << std::endl;
+}
+
+BufferError CircularBuffer::read(char *data, const uint32_t len, const uint32_t timeout)
+{
+    BufferError ret_val = BufferError::BUF_NOERROR;
+    uint32_t len_data = len;
+    std::unique_lock<std::mutex> lk(m);
+    if (timeout > 0)
+        read_signal_.wait_for(lk, std::chrono::milliseconds(timeout), [&] { return check_free_space(len_data); });
+    else
+        read_signal_.wait(lk, [&] {return check_free_space(len_data);});
+
+    if (count() < len_data || destructor_call_)
+        return BufferError::BUF_TIMEOUT;
+
+    while (len_data > 0) {
+        // don't copy beyond the end of the buffer
+        uint32_t c = std::min(len_data, size_ - tail_);
+        memcpy(data, buf_ + tail_, c);
+        data += c;
+        len_data -= c;
+        tail_ = (tail_ + c) % size_;
+    }
+    return ret_val;
+}
+
+BufferError CircularBuffer::write(const char *data, const uint32_t len)
+{
+    BufferError ret_val = BufferError::BUF_NOERROR;
+    uint32_t len_data = len;
+    std::unique_lock<std::mutex> lk(m);
+    bool overflow = len_data > remain_bytes();
+
+    while (len_data > 0) {
+        // don't copy beyond the end of the buffer
+        uint32_t c = std::min(len_data, size_ - head_);
+        memcpy(buf_ + head_, data, c);
+        len_data -= c;
+        data += c;
+        head_ = (head_ + c) % size_;
+    }
+
+    if (overflow) {
+        tail_ = (head_ + 1) % size_;
+        ret_val = BufferError::BUF_OVERFLOW;
+        std::cout << "Overflow happen" << std::endl;
+    }
+    read_signal_.notify_all();
+
+    return ret_val;
+}
+
+void CircularBuffer::clear_buffer()
+{
+    std::unique_lock<std::mutex> lk(m);
+    head_ = tail_ = 0;
+}
+
+void CircularBuffer::erase_buffer()
+{
+    std::unique_lock<std::mutex> lk(m);
+    delete[] buf_;
+    buf_ = nullptr;
 }
 
 uint32_t CircularBuffer::remain_bytes()
@@ -84,7 +147,7 @@ BufferError CircularBuffer::write(const uint8_t *data, const uint32_t len)
     return ret_val;
 }
 
-uint8_t CircularBuffer::read_next_byte()
+char CircularBuffer::read_next_byte()
 {
     uint8_t data;
     uint8_t *data_ptr = &data;

@@ -9,18 +9,20 @@ CircularBuffer::CircularBuffer(uint32_t size_bytes)
     : size_(size_bytes) , destructor_call_(false)
 {
     head_ = tail_ = 0;
-    buf_ = nullptr;
-    buf_ = new uint8_t[size_];
-    memset(buf_, 0x00, 1024 * 1024);
-    for (uint64_t index = 0; index < size_ ; index++)
-        buf_[size_ - 1] = 0xfa;
+//    buf_ = nullptr;
+//    buf_ = new uint8_t[size_];
+    buf_.resize(size_bytes);
+    memset(&buf_[0], 0x00, size_);
+
+//    for (uint64_t index = 0; index < size_ ; index++)
+//        buf_[size_ - 1] = 0xaa;
 }
 
 CircularBuffer::~CircularBuffer()
 {
     destructor_call_ = true;
     read_signal_.notify_all();
-    delete[] buf_;
+//    delete[] buf_;
     std::cout << "buffer distructor" << std::endl;
 }
 
@@ -40,7 +42,7 @@ BufferError CircularBuffer::read(char *data, const uint32_t len, const uint32_t 
     while (len_data > 0) {
         // don't copy beyond the end of the buffer
         uint32_t c = std::min(len_data, size_ - tail_);
-        memcpy(data, buf_ + tail_, c);
+        memcpy(data, &buf_[0] + tail_, c);
         data += c;
         len_data -= c;
         tail_ = (tail_ + c) % size_;
@@ -58,7 +60,7 @@ BufferError CircularBuffer::write(const char *data, const uint32_t len)
     while (len_data > 0) {
         // don't copy beyond the end of the buffer
         uint32_t c = std::min(len_data, size_ - head_);
-        memcpy(buf_ + head_, data, c);
+        memcpy(&buf_[0] + head_, data, c);
         len_data -= c;
         data += c;
         head_ = (head_ + c) % size_;
@@ -83,8 +85,13 @@ void CircularBuffer::clear_buffer()
 void CircularBuffer::erase_buffer()
 {
     std::unique_lock<std::mutex> lk(m);
-    delete[] buf_;
-    buf_ = nullptr;
+    buf_.resize(0);
+}
+
+void CircularBuffer::set_new_buffer_size(size_t size)
+{
+    std::unique_lock<std::mutex> lk(m);
+    buf_.resize(size);
 }
 
 uint32_t CircularBuffer::remain_bytes()
@@ -113,7 +120,7 @@ BufferError CircularBuffer::read(uint8_t *data, const uint32_t len, const uint32
     while (len_data > 0) {
         // don't copy beyond the end of the buffer
         uint32_t c = std::min(len_data, size_ - tail_);
-        memcpy(data, buf_ + tail_, c);
+        memcpy(data, &buf_[0] + tail_, c);
         data += c;
         len_data -= c;
         tail_ = (tail_ + c) % size_;
@@ -131,7 +138,7 @@ BufferError CircularBuffer::write(const uint8_t *data, const uint32_t len)
     while (len_data > 0) {
         // don't copy beyond the end of the buffer
         uint32_t c = std::min(len_data, size_ - head_);
-        memcpy(buf_ + head_, data, c);
+        memcpy(&buf_[0] + head_, data, c);
         len_data -= c;
         data += c;
         head_ = (head_ + c) % size_;

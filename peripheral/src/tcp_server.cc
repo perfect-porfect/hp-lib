@@ -126,8 +126,8 @@ void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> sock
             clients_mutex_.lock();
             all_clients_map_[tcp_client->get_client_id()] = tcp_client;
             clients_mutex_.unlock();
-            tcp_client->notify_me_when_disconnected(std::bind(&TCPServer::disconnect, this, std::placeholders::_1));
             tcp_client->connect();
+            tcp_client->notify_me_when_disconnected(std::bind(&TCPServer::disconnect, this, std::placeholders::_1));
             client_object_connections_(tcp_client);
             client_number_++;
             handle_connection();

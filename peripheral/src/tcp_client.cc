@@ -11,17 +11,15 @@ std::atomic<int> TCPClient::ID_Counter_(0);
 TCPClient::TCPClient(TCPSocketShared socket)
     : ip_(socket->remote_endpoint().address().to_string()), port_(socket->remote_endpoint().port()), socket_(socket)
 {
-    is_socket_create_by_server_ = true;
-    is_connected_ = true;
     initialize();
     socket_->async_receive(boost::asio::buffer(data_.data(), data_.size()),
                            boost::bind(&TCPClient::handle_read_data, this, boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
+    is_connected_ = true;
 }
 
 TCPClient::TCPClient(std::string ip, short port)
     : ip_(ip), port_(port)
 {
-    is_socket_create_by_server_ = false;
     is_connected_ = false;
     work_ = boost::make_shared<boost::asio::io_context::work>(io_context_);
     socket_ = std::make_shared<boost::asio::ip::tcp::socket>(io_context_);
@@ -33,20 +31,15 @@ void TCPClient::async_connect(std::function<void (int)> func)
 
 }
 
-void TCPClient::start_find_messages(std::shared_ptr<AbstractPacketStructure> packet_structure)
-{
-    packet_structure_ = packet_structure;
-}
 
 void TCPClient::initialize()
 {
-    do_buffer_data_ = false;
+    buffer_size_ = 1 * 1024;
+    buffer_= std::make_shared<CircularBuffer>(buffer_size_);
+    do_buffer_data_ = true;
     is_running_ = false;
-    buffer_ = nullptr;
     packet_structure_ = nullptr;
     buffer_is_mine_ = true;
-    is_buffered_data_ = true;
-    buffer_size_ = 1 * 1024;
     receive_size_ = 0;
     send_size_= 0;
     id_ = ID_Counter_;
@@ -55,10 +48,7 @@ void TCPClient::initialize()
 
 bool TCPClient::connect()
 {
-    // TODO(fix receive data handle when client createdwhen_client_distructed in tcp server)
-    if (is_socket_create_by_server_)
-        return is_connected_;
-    else {
+    if (!is_connected_) {
         boost::system::error_code ec;
         boost::asio::ip::tcp::resolver resolver(io_context_);
         boost::asio::ip::tcp::resolver::query query(boost::asio::ip::tcp::v4(), ip_, std::to_string(port_));
@@ -66,31 +56,54 @@ bool TCPClient::connect()
         auto error = socket_->connect(endpoint_, ec);
         if (error) {
             is_connected_ = false;
-            return is_connected_;
+        } else {
+            thread_group_.create_thread(boost::bind(&TCPClient::io_context_thread, this));
+            socket_->async_receive(boost::asio::buffer(data_.data(), data_.size()),
+                                   boost::bind(&TCPClient::handle_read_data, this, boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
+            is_connected_ = true;
         }
-        thread_group_.create_thread(boost::bind(&TCPClient::io_context_thread, this));
-        socket_->async_receive(boost::asio::buffer(data_.data(), data_.size()),
-                               boost::bind(&TCPClient::handle_read_data, this, boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
     }
-
-    //        if (buffer_ == nullptr) {
-    //            buffer_ = std::make_shared<CircularBuffer>(buffer_size_);
-    //            buffer_is_mine_ = true;
-    //        }
-
-    //        if (msg_extractor_ != nullptr) {
-    //            thread_group_.create_thread(boost::bind(&TCPClient::extract_message, this));
-    //        }
-
-
-    is_connected_ = true;
     return is_connected_;
 }
 
-void TCPClient::set_buffer_size(uint64_t size_bytes)
+
+void TCPClient::start_find_messages(std::shared_ptr<AbstractPacketStructure> packet_structure)
 {
-    //    buffer_->set_size(size_bytes);
-    buffer_size_ = size_bytes;
+    if (tcp_message_extractor_ != nullptr) {
+        tcp_msg_extractor_lock_.lock();
+        packet_structure_ = packet_structure;
+        tcp_message_extractor_ = std::make_shared<MessageExtractor>(packet_structure_, buffer_);
+        thread_group_.create_thread(boost::bind(&TCPClient::extract_message, this));
+        tcp_msg_extractor_lock_.unlock();
+    } else {
+        tcp_msg_extractor_lock_.lock();
+        tcp_message_extractor_ = std::make_shared<MessageExtractor>(packet_structure_, buffer_);
+        tcp_msg_extractor_lock_.unlock();
+    }
+}
+
+void TCPClient::extract_message()
+{
+    while(!is_connected_)
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    while (is_connected_) {
+        tcp_msg_extractor_lock_.lock();
+        auto msg = tcp_message_extractor_->find_message();
+        tcp_msg_extractor_lock_.unlock();
+        if (msg == nullptr) {
+            std::cout << "fucking null msg" << std::endl;
+            exit(1);
+        }
+        messages_buffer_.write(msg);
+    }
+}
+
+void TCPClient::set_buffer_size(size_t size_bytes)
+{
+    if (buffer_ != nullptr)
+        buffer_size_ = size_bytes;
+    else
+        buffer_->set_new_buffer_size(size_bytes);
 }
 
 size_t TCPClient::send(const char *data, const uint32_t size)
@@ -112,11 +125,9 @@ void TCPClient::async_send(const char *data, const uint32_t size, std::function<
 void TCPClient::handle_read_data(const boost::system::error_code error, const size_t bytes_transferred)
 {
     if (!error) {
-        if (!is_buffered_data_ && do_buffer_data_) {
-            data_received_connections_((char*)data_.data(), bytes_transferred);
-        } else {
+        data_received_connections_((char*)data_.data(), bytes_transferred);
+        if (do_buffer_data_)
             buffer_->write(data_.data(), bytes_transferred);
-        }
         receive_size_ += bytes_transferred;
         socket_->async_receive(boost::asio::buffer(data_.data(), data_.size()),
                                boost::bind(&TCPClient::handle_read_data, this, boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
@@ -131,7 +142,7 @@ void TCPClient::handle_read_data(const boost::system::error_code error, const si
 
 BufferError TCPClient::read_next_bytes(uint8_t *data, const uint32_t len, const uint32_t timeout_ms)
 {
-    if (packet_structure_ != nullptr || buffer_ == nullptr)
+    if (buffer_ == nullptr || packet_structure_ != nullptr)
         return BufferError::BUF_NODATA;
     auto ret = buffer_->read(data, len, timeout_ms);
     return ret;
@@ -139,10 +150,8 @@ BufferError TCPClient::read_next_bytes(uint8_t *data, const uint32_t len, const 
 
 char TCPClient::read_next_byte()
 {
-    if (buffer_ == nullptr) {
-        while(buffer_ == nullptr) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }
+    while(buffer_ == nullptr || packet_structure_ != nullptr) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
     char data;
     char *data_ptr = &data;
@@ -152,7 +161,7 @@ char TCPClient::read_next_byte()
 
 std::string TCPClient::read_all_bytes()
 {
-    if (buffer_ == nullptr)
+    if (buffer_ == nullptr || packet_structure_ != nullptr)
         return "";
     auto data = buffer_->get_all_bytes();
     return data;
@@ -160,7 +169,7 @@ std::string TCPClient::read_all_bytes()
 
 uint32_t TCPClient::read_remain_bytes()
 {
-    if (buffer_ == nullptr)
+    if (buffer_ == nullptr || packet_structure_ != nullptr)
         return 0;
     uint32_t size = buffer_->get_remain_bytes();
     return size;
@@ -171,41 +180,27 @@ void TCPClient::do_buffer_data(const bool state)
     do_buffer_data_ = state;
 }
 
-TCPError TCPClient::set_buffer(std::shared_ptr<AbstractBuffer> buffer)
+void TCPClient::set_buffer(std::shared_ptr<AbstractBuffer> buffer)
 {
-    //    buffer_lock_.lock();
-
-    //    //TODO(HP): lock this and copy data to new buffer
-    //    if (buffer_is_mine_) {
-    //        std::string data = buffer_->get_all_bytes();
-    //        buffer->write(data.data(), data.size());
-    //    }
-    //    buffer_ = buffer;
-    //    buffer_is_mine_ = false;
-    //    buffer_lock_.unlock();
-}
-
-void TCPClient::extract_message()
-{
-    tcp_message_extractor_ = std::make_shared<MessageExtractor>(packet_structure_, buffer_);
-    while(is_connected_) {
-        auto msg = tcp_message_extractor_->find_message();
-        if (msg == nullptr) {
-            std::cout << "fucking null msg" << std::endl;
-            exit(1);
-        }
-        messages_buffer_.write(msg);
+    if (buffer_ == nullptr) {
+        buffer_is_mine_ = false;
+        buffer_ = buffer;
+    } else {
+        std::string all_data = buffer->get_all_bytes();
+        buffer->write(all_data.data(), all_data.size());
+        buffer_ = buffer;
     }
 }
+
 
 boost::signals2::connection TCPClient::notify_me_when_disconnected(std::function<void (int)> func)
 {
     return disconnect_connections_.connect(func);
 }
 
-boost::signals2::connection TCPClient::dont_buffer_notify_me_data_received(std::function<void (const char *, size_t)> func)
+boost::signals2::connection TCPClient::notify_me_data_received(std::function<void (const char *, size_t)> func)
 {
-    is_buffered_data_ = false;
+    //    is_buffered_data_ = false;
     return data_received_connections_.connect(func);
 }
 
@@ -219,6 +214,32 @@ void TCPClient::disconnect()
     socket_->close();
     is_connected_ = false;
 }
+
+void TCPClient::io_context_thread()
+{
+    io_context_.run();
+}
+
+std::string TCPClient::get_ip() const
+{
+    return ip_;
+}
+
+short TCPClient::get_port() const
+{
+    return port_;
+}
+
+int TCPClient::get_client_id() const
+{
+    return id_;
+}
+
+std::shared_ptr<AbstractSerializableMessage> TCPClient::get_next_packet()
+{
+    return messages_buffer_.get_next_packet();
+}
+
 void TCPClient::print_send_receive_rate()
 {
     static int sec = 0;
@@ -282,31 +303,6 @@ void TCPClient::print_receive_rate()
         send_size_ = 0;
         receive_size_ = 0;
     }
-}
-
-void TCPClient::io_context_thread()
-{
-    io_context_.run();
-}
-
-std::string TCPClient::get_ip() const
-{
-    return ip_;
-}
-
-short TCPClient::get_port() const
-{
-    return port_;
-}
-
-int TCPClient::get_client_id() const
-{
-    return id_;
-}
-
-std::shared_ptr<AbstractSerializableMessage> TCPClient::get_next_packet()
-{
-    return messages_buffer_.get_next_packet();
 }
 
 TCPClient::~TCPClient()

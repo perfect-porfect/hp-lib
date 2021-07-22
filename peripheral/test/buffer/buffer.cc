@@ -7,7 +7,7 @@ const int Counter = 100000000;
 void read_(hp::peripheral::AbstractBuffer* buffer) {
     int counter = 0;
     while(1) {
-        uint8_t data = buffer->read_next_byte();
+        buffer->read_next_byte();
         if (counter % 100000 == 0)
             std::cout << "read #" << counter << std::endl;
         if (counter == Counter) {
@@ -24,7 +24,7 @@ void write_(hp::peripheral::AbstractBuffer* buffer)
     uint8_t *data = new u_int8_t[1];
     data[0] = 0x61;
     while(1) {
-        uint8_t data1 = buffer->write(data, 1);
+        buffer->write(data, 1);
         if (counter % 1000000 == 0)
             std::cout << "write #" << counter << std::endl;
         if (counter == Counter) {

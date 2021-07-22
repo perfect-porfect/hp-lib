@@ -39,11 +39,10 @@ void date_received(const char * data, size_t size, uint32_t id) {
 
 void new_connection(TCPClientShared client)
 {
-    //        client->set_buffer_size(10);
-//        client->dont_buffer_notify_me_data_received(std::bind(date_received, std::placeholders::_1, std::placeholders::_2, client->get_client_id()));
+    client->set_buffer_size(2 * 1024);
+    client->notify_me_data_received(std::bind(date_received, std::placeholders::_1, std::placeholders::_2, client->get_client_id()));
     //    printer_thread_ = new std::thread(std::bind(print_receive, client));
-    client->connect();
-//auto data = client->read_next_byte(10);
+    //auto data = client->read_next_byte(10);
     auto thread = new std::thread(thread_for_work_client, client);
     clients_thread.push_back(thread);
     std::cout << "id: " << client->get_client_id() << " port: " << client->get_port() << " ip: " << client->get_ip() << std::endl;
@@ -86,7 +85,7 @@ void send_data_to_server() {
         if (ret != BufferError::BUF_NOERROR) {
             std::cout << "fuck ID: " << client->get_client_id() << std::endl;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
 
@@ -96,9 +95,9 @@ int main()
     std::memset(&send_data[0], 0xaa, size_data);
 
     Thread_Clients_ = std::make_shared<boost::thread_group>();
-    //    Thread_Clients_->create_thread(start_tcp_server);
+    Thread_Clients_->create_thread(start_tcp_server);
 
-    for (int i = 0 ; i < 200; i++) {
+    for (int i = 0 ; i < 1; i++) {
         Thread_Clients_->create_thread(send_data_to_server);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }

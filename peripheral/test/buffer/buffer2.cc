@@ -8,15 +8,17 @@ using namespace hp::peripheral;
 
 int main()
 {
-    auto main_buffer = std::make_shared<CircularBuffer>(1 * 1024 * 1024);
-    auto copy_buffer = std::make_shared<CircularBuffer>(1 * 1024 * 1024);
+    auto main_buffer = std::make_shared<CircularBuffer>(1 * 1024);
+    auto copy_buffer = std::make_shared<CircularBuffer>(1 * 1024);
     main_buffer->write("abc", 3);
     std::string main_data = main_buffer->get_all_bytes();
     copy_buffer->write(main_data.data(), main_data.size());
+    copy_buffer->set_new_buffer_size(50);
     std::string fuck_data = copy_buffer->get_all_bytes();
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+//    std::this_thread::sleep_for(std::chrono::seconds(10));
     main_buffer->erase_buffer();
     copy_buffer->erase_buffer();
+
     while(1)
         std::this_thread::sleep_for(std::chrono::seconds(10));
 

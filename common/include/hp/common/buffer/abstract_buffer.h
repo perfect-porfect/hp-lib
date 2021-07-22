@@ -16,6 +16,7 @@ enum BufferError {
 class AbstractBuffer
 {
 public:
+    //TODO(HP): Change overload functions to templates
     virtual BufferError read(uint8_t *data, const uint32_t len, const uint32_t timeout = 0) = 0;
     virtual BufferError read(char *data, const uint32_t len, const uint32_t timeout = 0) = 0;
     virtual char read_next_byte() = 0;
@@ -26,7 +27,7 @@ public:
     virtual void erase_buffer() = 0;
     virtual std::string get_all_bytes() = 0;
     virtual uint32_t get_remain_bytes() = 0;
-
+    virtual void set_new_buffer_size(size_t size) = 0;
     virtual ~AbstractBuffer() {}
 };
 

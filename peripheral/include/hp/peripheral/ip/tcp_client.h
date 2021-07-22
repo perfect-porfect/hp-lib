@@ -18,7 +18,9 @@ namespace hp {
 namespace peripheral {
 
 enum class TCPError{
-    Buffer_Set
+    CantSetNewBuffer,
+    CantSetNewBufferSize,
+    NoError
 };
 
 //class ClientConfig {
@@ -52,11 +54,11 @@ public:
     bool is_connected() const;
 
     boost::signals2::connection notify_me_when_disconnected(std::function<void (int) >func);
-    boost::signals2::connection dont_buffer_notify_me_data_received(std::function<void (const char * data, size_t size)> func);
+    boost::signals2::connection notify_me_data_received(std::function<void (const char * data, size_t size)> func);
 
-    TCPError set_buffer(std::shared_ptr<AbstractBuffer> buffer);
+    void set_buffer(std::shared_ptr<AbstractBuffer> buffer);
     void start_find_messages(std::shared_ptr<AbstractPacketStructure> extractor);
-    void set_buffer_size(uint64_t size_bytes);
+    void set_buffer_size(size_t size_bytes);
     std::shared_ptr<AbstractSerializableMessage> get_next_packet();
     BufferError read_next_bytes(uint8_t *data, const uint32_t len, const uint32_t timeout_ms = 0);
     char read_next_byte();
@@ -79,7 +81,7 @@ private:
     uint64_t buffer_size_;
     bool is_connected_;
     bool is_running_;
-    bool is_socket_create_by_server_;
+//    bool is_socket_create_by_server_;
     bool do_buffer_data_;
     int id_;
     std::shared_ptr<boost::asio::ip::tcp::socket> socket_;
@@ -97,9 +99,9 @@ private:
     boost::thread_group thread_group_;
     boost::asio::ip::tcp::endpoint endpoint_;
     boost::asio::io_context io_context_;
-
+    std::mutex tcp_msg_extractor_lock_;
     static std::atomic<int> ID_Counter_;
-    bool is_buffered_data_;
+//    bool is_buffered_data_;
     bool buffer_is_mine_;
     std::shared_ptr<AbstractBuffer> buffer_;
     std::shared_ptr<AbstractPacketStructure> packet_structure_;

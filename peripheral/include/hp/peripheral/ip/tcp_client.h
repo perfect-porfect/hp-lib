@@ -10,7 +10,7 @@
 #include "message_extractor.h"
 #include "hp/common/buffer/buffer_template.h"
 
-#define MAX_LENGTH (1 * 1024)
+#define MAX_LENGTH (1 * 1024 *  1024)
 
 typedef std::shared_ptr<boost::asio::ip::tcp::socket> TCPSocketShared;
 
@@ -60,7 +60,7 @@ public:
     void start_find_messages(std::shared_ptr<AbstractPacketStructure> extractor);
     void set_buffer_size(size_t size_bytes);
     std::shared_ptr<AbstractSerializableMessage> get_next_packet();
-    BufferError read_next_bytes(uint8_t *data, const uint32_t len, const uint32_t timeout_ms = 0);
+    BufferError read_next_bytes(char *data, const uint32_t len, const uint32_t timeout_ms = 0);
     char read_next_byte();
     std::string read_all_bytes();
     uint32_t read_remain_bytes();

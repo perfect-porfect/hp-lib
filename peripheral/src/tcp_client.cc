@@ -140,7 +140,7 @@ void TCPClient::handle_read_data(const boost::system::error_code error, const si
     }
 }
 
-BufferError TCPClient::read_next_bytes(uint8_t *data, const uint32_t len, const uint32_t timeout_ms)
+BufferError TCPClient::read_next_bytes(char *data, const uint32_t len, const uint32_t timeout_ms)
 {
     if (buffer_ == nullptr || packet_structure_ != nullptr)
         return BufferError::BUF_NODATA;

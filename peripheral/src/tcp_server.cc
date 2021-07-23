@@ -120,7 +120,6 @@ TCPClientShared TCPServer::get_client(uint32_t id)
 void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> socket, const boost::system::error_code &error)
 {
     try {
-
         if(!error && accept_connection_) {
             auto tcp_client = std::make_shared<TCPClient>(socket);
             clients_mutex_.lock();
@@ -132,8 +131,12 @@ void TCPServer::handle_accept(std::shared_ptr<boost::asio::ip::tcp::socket> sock
             client_number_++;
             handle_connection();
         }
-    }  catch (...) {
-        std::cout << "fuuuuuuuck" << std::endl;
+    }  catch (std::exception &e) {
+        std::cout << "fuck: " << e.what() << std::endl;
+    }  catch (boost::exception &e) {
+        std::cout << "fuck2: " << std::endl;
+    } catch(...) {
+        std::cout << "fuck3" << std::endl;
     }
 }
 
